@@ -16,7 +16,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "orders")
+@Table(
+    name = "orders",
+    uniqueConstraints = @jakarta.persistence.UniqueConstraint(
+        name = "uk_orders_user_checkout_id",
+        columnNames = {"user_id", "checkout_id"}))
 public class Order {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -30,6 +34,8 @@ public class Order {
   private String status = "PENDING";
   @Column(name = "stripe_payment_intent_id")
   private String stripePaymentIntentId;
+  @Column(name = "checkout_id", nullable = false)
+  private String checkoutId;
   @Column(name = "payment_status")
   private String paymentStatus = "PENDING";
   @Column(name = "stock_reserved")
@@ -45,6 +51,7 @@ public class Order {
   public BigDecimal getTotal() { return total; }
   public String getStatus() { return status; }
   public String getStripePaymentIntentId() { return stripePaymentIntentId; }
+  public String getCheckoutId() { return checkoutId; }
   public String getPaymentStatus() { return paymentStatus; }
   public boolean isStockReserved() { return stockReserved; }
   public Instant getCreatedAt() { return createdAt; }
@@ -56,6 +63,7 @@ public class Order {
   public void setStripePaymentIntentId(String stripePaymentIntentId) {
     this.stripePaymentIntentId = stripePaymentIntentId;
   }
+  public void setCheckoutId(String checkoutId) { this.checkoutId = checkoutId; }
   public void setPaymentStatus(String paymentStatus) { this.paymentStatus = paymentStatus; }
   public void setStockReserved(boolean stockReserved) { this.stockReserved = stockReserved; }
   public void addItem(OrderItem item) { items.add(item); item.setOrder(this); }
