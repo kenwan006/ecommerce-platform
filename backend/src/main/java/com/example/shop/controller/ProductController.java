@@ -31,7 +31,7 @@ public class ProductController {
         .orElseThrow(() -> new IllegalArgumentException("Product not found"));
   }
 
-  @GetMapping
+  @GetMapping(params = "id")
   public ResponseEntity<?> getProduct(@RequestParam Long id) {
     Optional<Product> product = products.findById(id);
     if (product.isPresent()) {

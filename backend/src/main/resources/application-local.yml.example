@@ -1,0 +1,12 @@
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: your-google-client-id
+            client-secret: your-google-client-secret
+            scope: openid, profile, email
+
+app:
+  jwt-secret: replace-with-a-base64-encoded-32-byte-secret

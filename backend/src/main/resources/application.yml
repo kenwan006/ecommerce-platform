@@ -21,3 +21,7 @@ management:
     web:
       exposure:
         include: health,beans,conditions
+
+app:
+  frontend-url: http://localhost:5173
+  jwt-secret: ${JWT_SECRET:}

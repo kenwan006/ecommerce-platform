@@ -6,6 +6,9 @@ import com.example.shop.service.AuthService;
 import jakarta.validation.Valid;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -30,5 +33,13 @@ public class AuthController {
   @PostMapping("/login")
   public Map<String, Object> login(@Valid @RequestBody LoginRequest request) {
     return service.login(request);
+  }
+
+  @GetMapping("/me")
+  public ResponseEntity<Map<String, Object>> currentUser(Authentication authentication) {
+    if (authentication == null || !authentication.isAuthenticated()) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+    return ResponseEntity.ok(service.currentUser(Long.valueOf(authentication.getName())));
   }
 }

@@ -23,6 +23,12 @@ public class User {
   @Column(name = "password_hash")
   private String passwordHash;
 
+  @Column(name = "oauth_provider")
+  private String oauthProvider;
+
+  @Column(name = "oauth_provider_subject")
+  private String oauthProviderSubject;
+
   private String role = "CUSTOMER";
 
   @Column(name = "created_at")
@@ -55,4 +61,9 @@ public class User {
   public void setPasswordHash(String passwordHash) {
     this.passwordHash = passwordHash;
   }
+
+  public String getOauthProvider() { return oauthProvider; }
+  public void setOauthProvider(String oauthProvider) { this.oauthProvider = oauthProvider; }
+  public String getOauthProviderSubject() { return oauthProviderSubject; }
+  public void setOauthProviderSubject(String oauthProviderSubject) { this.oauthProviderSubject = oauthProviderSubject; }
 }

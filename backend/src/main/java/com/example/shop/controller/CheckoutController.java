@@ -5,7 +5,7 @@ import com.example.shop.dto.CheckoutResponse;
 import com.example.shop.service.CheckoutService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -23,7 +23,11 @@ public class CheckoutController {
 
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
-  public CheckoutResponse create(@Valid @RequestBody CheckoutRequest request) {
+  public CheckoutResponse create(@Valid @RequestBody CheckoutRequest request, Authentication authentication) {
+    Long authenticatedUserId = Long.valueOf(authentication.getName());
+    if (!authenticatedUserId.equals(request.userId())) {
+      throw new IllegalArgumentException("Checkout user does not match the authenticated user");
+    }
     return checkoutService.createCheckout(request);
   }
 }

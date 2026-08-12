@@ -15,7 +15,8 @@ public class WebConfig {
         registry
             .addMapping("/api/**")
             .allowedOrigins("http://localhost:5173", "http://localhost:5174")
-            .allowedMethods("GET", "POST");
+            .allowedMethods("GET", "POST")
+            .allowCredentials(true);
       }
     };
   }
