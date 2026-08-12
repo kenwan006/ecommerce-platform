@@ -23,6 +23,18 @@ export default function App() {
       .then(setProducts)
       .catch(() => setNotice('Could not reach the API. Start the backend first.'));
   }, []);
+  useEffect(() => {
+    const accessToken = new URLSearchParams(window.location.hash.slice(1)).get('access_token');
+    if (!accessToken) return;
+    localStorage.setItem('accessToken', accessToken);
+    api.currentUser()
+      .then(loggedInUser => {
+        setUser(loggedInUser);
+        setNotice(`Welcome, ${loggedInUser.name}.`);
+      })
+      .catch(() => setNotice('Google sign-in could not be completed.'))
+      .finally(() => window.history.replaceState({}, '', window.location.pathname));
+  }, []);
   useEffect(() => localStorage.setItem('cart', JSON.stringify(cart)), [cart]);
   useEffect(() => {
     if (user) localStorage.setItem('user', JSON.stringify(user));
@@ -101,7 +113,15 @@ export default function App() {
         />
       )}
       {view === 'account' && (
-        <Account user={user} onAuthenticate={authenticate} onSignOut={() => setUser(null)} />
+        <Account
+          user={user}
+          onAuthenticate={authenticate}
+          onGoogleSignIn={() => window.location.assign(api.googleLoginUrl)}
+          onSignOut={() => {
+            localStorage.removeItem('accessToken');
+            setUser(null);
+          }}
+        />
       )}
     </main>
   );

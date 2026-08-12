@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-export default function Account({ user, onAuthenticate, onSignOut }) {
+export default function Account({ user, onAuthenticate, onGoogleSignIn, onSignOut }) {
   const [mode, setMode] = useState('login');
   const [form, setForm] = useState({ name: '', email: '', password: '' });
   const submit = async event => {
@@ -28,6 +28,7 @@ export default function Account({ user, onAuthenticate, onSignOut }) {
       <label>Password<input required minLength="8" type="password" value={form.password} onChange={event => setForm({ ...form, password: event.target.value })} /></label>
       <button className="primary">{mode === 'login' ? 'Sign in' : 'Create account'}</button>
     </form>
+    <button className="text" onClick={onGoogleSignIn}>Continue with Google</button>
     <button className="text" onClick={() => setMode(mode === 'login' ? 'register' : 'login')}>{mode === 'login' ? 'Need an account?' : 'Already have an account?'}</button>
     </section>
   );
