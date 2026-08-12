@@ -39,7 +39,7 @@ class OrderServiceTest {
     setField(product, "stock", 5);
     when(users.findById(7L)).thenReturn(Optional.of(user));
     when(products.findById(9L)).thenReturn(Optional.of(product));
-    when(orders.saveAndFlush(any(Order.class))).thenAnswer(invocation -> {
+    when(orders.save(any(Order.class))).thenAnswer(invocation -> {
       Order order = invocation.getArgument(0);
       storedOrder.set(order);
       return order;
@@ -53,7 +53,7 @@ class OrderServiceTest {
     assertThat(first.getTotal()).isEqualByComparingTo("25.00");
     assertThat(first.getItems()).hasSize(1);
     assertThat(product.getStock()).isEqualTo(3);
-    verify(orders).saveAndFlush(first);
+    verify(orders).save(first);
     verify(products).findById(9L);
     verify(users).findById(7L);
   }
@@ -68,7 +68,7 @@ class OrderServiceTest {
 
     verify(users, never()).findById(any());
     verify(products, never()).findById(any());
-    verify(orders, never()).saveAndFlush(any());
+    verify(orders, never()).save(any());
   }
 
   private static void setField(Object target, String fieldName, Object value) {

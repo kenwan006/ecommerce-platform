@@ -15,19 +15,22 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 @Service
 public class OrderService {
-  private final UserRepository users;
-  private final ProductRepository products;
-  private final OrderRepository orders;
+  private final UserRepository userRepository;
+  private final ProductRepository productRepository;
+  private final OrderRepository orderRepository;
 
-  public OrderService(UserRepository users, ProductRepository products, OrderRepository orders) {
-    this.users = users;
-    this.products = products;
-    this.orders = orders;
+  public OrderService(
+      UserRepository userRepository,
+      ProductRepository productRepository,
+      OrderRepository orderRepository) {
+    this.userRepository = userRepository;
+    this.productRepository = productRepository;
+    this.orderRepository = orderRepository;
   }
 
   @Transactional(readOnly = true)
   public List<OrderResponse> byUser(Long userId) {
-    return orders.findByUserIdOrderByCreatedAtDesc(userId).stream()
+    return orderRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
         .map(OrderResponse::from)
         .toList();
   }
@@ -35,12 +38,12 @@ public class OrderService {
   /** Persists the local checkout operation before any call to an external payment provider. */
   @Transactional
   public Order getOrCreateCheckout(CheckoutRequest request) {
-    Order existing = orders.findByUserIdAndCheckoutId(request.userId(), request.checkoutId()).orElse(null);
+    Order existing = orderRepository.findByUserIdAndCheckoutId(request.userId(), request.checkoutId()).orElse(null);
     if (existing != null) {
       return existing;
     }
 
-    User user = users.findById(request.userId())
+    User user = userRepository.findById(request.userId())
         .orElseThrow(() -> new IllegalArgumentException("User not found"));
     Order order = new Order();
     order.setUser(user);
@@ -48,7 +51,7 @@ public class OrderService {
     BigDecimal total = BigDecimal.ZERO;
 
     for (CheckoutRequest.Item requested : request.items()) {
-      Product product = products.findById(requested.productId())
+      Product product = productRepository.findById(requested.productId())
           .orElseThrow(() -> new IllegalArgumentException("Product not found: " + requested.productId()));
       if (product.getStock() < requested.quantity()) {
         throw new IllegalStateException(product.getName() + " is out of stock");
@@ -65,12 +68,12 @@ public class OrderService {
 
     order.setTotal(total);
     order.setStockReserved(true);
-    return orders.saveAndFlush(order);
+    return orderRepository.save(order);
   }
 
   @Transactional(readOnly = true)
   public Order getCheckout(Long userId, String checkoutId) {
-    return orders.findByUserIdAndCheckoutId(userId, checkoutId)
+    return orderRepository.findByUserIdAndCheckoutId(userId, checkoutId)
         .orElseThrow(() -> new IllegalStateException("Checkout could not be recovered after a concurrent request"));
   }
 }
