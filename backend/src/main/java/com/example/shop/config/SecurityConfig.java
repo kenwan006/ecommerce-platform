@@ -6,6 +6,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -25,15 +27,18 @@ public class SecurityConfig {
       HttpSecurity http,
       ObjectProvider<ClientRegistrationRepository> clientRegistrationRepository,
       AuthenticationSuccessHandler googleAuthenticationSuccessHandler,
-      JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
+      JwtAuthenticationFilter jwtAuthenticationFilter,
+      @Value("${app.oauth.enabled:false}") boolean oauthEnabled) throws Exception {
     http
         .csrf(csrf -> csrf.disable())
+        .cors(Customizer.withDefaults())
         .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
         .authorizeHttpRequests(authorize -> authorize
-            .requestMatchers("/api/auth/register", "/api/auth/login", "/api/products/**", "/actuator/**", "/oauth2/**", "/login/oauth2/**").permitAll()
+            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+            .requestMatchers("/api/auth/register", "/api/auth/login", "/api/products/**", "/api/ai/**", "/actuator/**", "/oauth2/**", "/login/oauth2/**", "/error").permitAll()
             .anyRequest().authenticated())
         .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
-    if (clientRegistrationRepository.getIfAvailable() != null) {
+    if (oauthEnabled && clientRegistrationRepository.getIfAvailable() != null) {
       http.oauth2Login(oauth -> oauth.successHandler(googleAuthenticationSuccessHandler));
     }
     return http.build();

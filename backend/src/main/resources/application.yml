@@ -25,3 +25,5 @@ management:
 app:
   frontend-url: http://localhost:5173
   jwt-secret: ${JWT_SECRET:}
+  oauth:
+    enabled: false
