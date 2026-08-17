@@ -117,7 +117,6 @@ export default function App() {
         <Account
           user={user}
           onAuthenticate={authenticate}
-          onGoogleSignIn={() => window.location.assign(api.googleLoginUrl)}
           onSignOut={() => {
             localStorage.removeItem('accessToken');
             setUser(null);
