@@ -21,5 +21,10 @@ export const api = {
   register: (details) => request('/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(details) }),
   currentUser: () => request('/auth/me'),
   googleLoginUrl: 'http://localhost:8080/oauth2/authorization/google',
+  askAi: (message) => request('/ai/ask', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message }),
+  }),
   createCheckout: (checkout) => request('/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(checkout) }),
 };

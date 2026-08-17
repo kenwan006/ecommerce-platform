@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Account from './components/Account';
 import Cart from './components/Cart';
+import ChatBox from './components/ChatBox';
 import Checkout from './components/Checkout';
 import Header from './components/Header';
 import Notice from './components/Notice';
@@ -123,6 +124,7 @@ export default function App() {
           }}
         />
       )}
+      <ChatBox />
     </main>
   );
 }
