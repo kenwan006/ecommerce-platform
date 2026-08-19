@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from openai import OpenAI
+from agents.mcp import MCPServerStreamableHttp
 
 from app.agents.order_agent import OrderAgent
 from app.api.ai_routes import router as ai_router
@@ -15,11 +15,20 @@ async def lifespan(app: FastAPI):
     if not settings.openai_api_key:
         raise RuntimeError("OPENAI_API_KEY must be set before starting the AI agent.")
 
-    app.state.order_agent = OrderAgent(
-        openai_client=OpenAI(api_key=settings.openai_api_key),
-        spring_client=SpringClient(settings.spring_api_url),
+    openai_docs_mcp_server = MCPServerStreamableHttp(
+        name="OpenAI Docs",
+        params={"url": settings.openai_docs_mcp_url},
+        cache_tools_list=True,
     )
-    yield
+    await openai_docs_mcp_server.connect()
+    await openai_docs_mcp_server.list_tools()
+
+    app.state.spring_client = SpringClient(settings.spring_api_url)
+    app.state.order_agent = OrderAgent(openai_docs_mcp_server)
+    try:
+        yield
+    finally:
+        await openai_docs_mcp_server.cleanup()
 
 
 app = FastAPI(title="Ecommerce AI Agent", lifespan=lifespan)

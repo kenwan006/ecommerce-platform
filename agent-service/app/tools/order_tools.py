@@ -1,39 +1,30 @@
-from app.clients.spring_client import SpringClient
+from agents import RunContextWrapper, function_tool
 
-ORDER_STATUS_TOOL = {
-    "type": "function",
-    "name": "get_order_status",
-    "description": "Get the status and details of one of the signed-in customer's orders.",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "orderId": {
-                "type": "integer",
-                "description": "The order ID supplied by the customer.",
-            }
-        },
-        "required": ["orderId"],
-        "additionalProperties": False,
-    },
-    "strict": True,
-}
-
-PENDING_ORDERS_TOOL = {
-    "type": "function",
-    "name": "get_pending_orders",
-    "description": "Get all orders for the signed-in customer whose payment is still pending.",
-    "parameters": {
-        "type": "object",
-        "properties": {},
-        "additionalProperties": False,
-    },
-    "strict": True,
-}
+from app.agents.context import AgentRequestContext
 
 
-def get_order_status(order_id: int, authorization: str, spring_client: SpringClient) -> dict:
-    return spring_client.get_order(order_id, authorization)
+
+@function_tool
+async def get_order_status(
+    context: RunContextWrapper[AgentRequestContext],
+    order_id: int,
+) -> dict:
+    """Get the status and details of one order belonging to the signed-in customer.
+
+    Args:
+        order_id: The order ID supplied by the customer.
+    """
+    return await context.context.spring_client.get_order(
+        order_id,
+        context.context.authorization,
+    )
 
 
-def get_pending_orders(authorization: str, spring_client: SpringClient) -> list:
-    return spring_client.get_pending_payment_orders(authorization)
+@function_tool
+async def get_pending_orders(
+    context: RunContextWrapper[AgentRequestContext],
+) -> list:
+    """Get all signed-in customer orders whose payment is still pending."""
+    return await context.context.spring_client.get_pending_payment_orders(
+        context.context.authorization,
+    )
