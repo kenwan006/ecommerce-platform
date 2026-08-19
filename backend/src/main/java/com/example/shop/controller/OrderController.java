@@ -3,6 +3,7 @@ package com.example.shop.controller;
 import com.example.shop.dto.OrderResponse;
 import com.example.shop.service.OrderService;
 import java.util.List;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -17,8 +18,22 @@ public class OrderController {
     this.service = service;
   }
 
-  @GetMapping("/user/{userId}")
-  public List<OrderResponse> history(@PathVariable Long userId) {
-    return service.byUser(userId);
+  @GetMapping
+  public List<OrderResponse> history(Authentication authentication) {
+    return service.byUser(currentUserId(authentication));
+  }
+
+  @GetMapping("/pending-payments")
+  public List<OrderResponse> pendingPayments(Authentication authentication) {
+    return service.pendingPaymentsByUser(currentUserId(authentication));
+  }
+
+  @GetMapping("/{orderId}")
+  public OrderResponse getOrder(@PathVariable Long orderId, Authentication authentication) {
+    return service.byIdForUser(orderId, currentUserId(authentication));
+  }
+
+  private Long currentUserId(Authentication authentication) {
+    return Long.valueOf(authentication.getName());
   }
 }

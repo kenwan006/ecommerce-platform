@@ -35,7 +35,7 @@ public class SecurityConfig {
         .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
         .authorizeHttpRequests(authorize -> authorize
             .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-            .requestMatchers("/api/auth/register", "/api/auth/login", "/api/products/**", "/api/ai/**", "/actuator/**", "/oauth2/**", "/login/oauth2/**", "/error").permitAll()
+            .requestMatchers("/api/auth/register", "/api/auth/login", "/api/products/**", "/actuator/**", "/oauth2/**", "/login/oauth2/**", "/error").permitAll()
             .anyRequest().authenticated())
         .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
     if (oauthEnabled && clientRegistrationRepository.getIfAvailable() != null) {

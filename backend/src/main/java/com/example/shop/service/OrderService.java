@@ -6,6 +6,7 @@ import com.example.shop.entity.Order;
 import com.example.shop.entity.OrderItem;
 import com.example.shop.entity.Product;
 import com.example.shop.entity.User;
+import com.example.shop.exception.ResourceNotFoundException;
 import com.example.shop.repository.OrderRepository;
 import com.example.shop.repository.ProductRepository;
 import com.example.shop.repository.UserRepository;
@@ -33,6 +34,20 @@ public class OrderService {
     return orderRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
         .map(OrderResponse::from)
         .toList();
+  }
+
+  @Transactional(readOnly = true)
+  public List<OrderResponse> pendingPaymentsByUser(Long userId) {
+    return orderRepository.findByUserIdAndPaymentStatusOrderByCreatedAtDesc(userId, "PENDING").stream()
+        .map(OrderResponse::from)
+        .toList();
+  }
+
+  @Transactional(readOnly = true)
+  public OrderResponse byIdForUser(Long orderId, Long userId) {
+    return orderRepository.findByIdAndUserId(orderId, userId)
+        .map(OrderResponse::from)
+        .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
   }
 
   /** Persists the local checkout operation before any call to an external payment provider. */

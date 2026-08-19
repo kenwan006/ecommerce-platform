@@ -17,4 +17,9 @@ public class ApiExceptionHandler {
   ResponseEntity<Map<String, String>> conflict(IllegalStateException ex) {
     return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
   }
+
+  @ExceptionHandler(ResourceNotFoundException.class)
+  ResponseEntity<Map<String, String>> notFound(ResourceNotFoundException ex) {
+    return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+  }
 }
