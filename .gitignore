@@ -4,3 +4,6 @@ frontend/dist/
 backend/target/
 .env
 backend/src/main/resources/application-local.yml
+agent-service/.env
+agent-service/.venv/
+__pycache__/

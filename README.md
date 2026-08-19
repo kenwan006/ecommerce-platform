@@ -5,10 +5,11 @@ A React storefront and Spring Boot API backed by MySQL.
 ## Run locally
 
 1. Start MySQL: `docker compose up -d`
-2. Start the API: `cd backend && mvn spring-boot:run`
-3. Start the UI: `cd frontend && npm install && npm run dev`
+2. Start the Spring API: `cd backend && mvn spring-boot:run`
+3. Start the AI agent: `cd agent-service && python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt && uvicorn app.main:app --reload --port 8000`
+4. Start the UI: `cd frontend && npm install && npm run dev`
 
-The API runs at `http://localhost:8080/api`; the UI runs at `http://localhost:5173`.
+The Spring API runs at `http://localhost:8080/api`, the FastAPI agent at `http://localhost:8000/api`, and the UI at `http://localhost:5173`.
 
 ## API overview
 
@@ -18,7 +19,15 @@ The API runs at `http://localhost:8080/api`; the UI runs at `http://localhost:51
 - `POST /api/orders` — view/create order records
 - `POST /api/checkout` — create a pending order and Stripe PaymentIntent
 - `POST /api/stripe/webhook` — receive Stripe payment status events
-- `GET /api/orders/user/{userId}` — order history
+- `GET /api/orders` — authenticated customer's order history
+- `GET /api/orders/{orderId}` — authenticated customer's order details
+- `GET /api/orders/pending-payments` — authenticated customer's orders with pending payment
+
+## AI order assistant
+
+The React chatbox calls the FastAPI service, which uses OpenAI function calling. When the model needs an order's status, it calls the Python `get_order_status` tool. The tool forwards the customer's JWT to Spring's `GET /api/orders/{orderId}` endpoint. Spring validates the JWT and returns an order only when it belongs to that customer.
+
+Create `agent-service/.env` from `agent-service/.env.example` and set `OPENAI_API_KEY` before starting FastAPI. Never commit this file or the key.
 
 ## Stripe test setup
 
