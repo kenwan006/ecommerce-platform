@@ -6,7 +6,7 @@ A React storefront and Spring Boot API backed by MySQL.
 
 1. Start MySQL: `docker compose up -d`
 2. Start the Spring API: `cd backend && mvn spring-boot:run`
-3. Start the AI agent: `cd agent-service && python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt && uvicorn app.main:app --reload --port 8000`
+3. Start the AI agent (Python 3.12+): `cd agent-service && python3.12 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt && uvicorn app.main:app --reload --port 8000`
 4. Start the UI: `cd frontend && npm install && npm run dev`
 
 The Spring API runs at `http://localhost:8080/api`, the FastAPI agent at `http://localhost:8000/api`, and the UI at `http://localhost:5173`.
@@ -26,6 +26,8 @@ The Spring API runs at `http://localhost:8080/api`, the FastAPI agent at `http:/
 ## AI order assistant
 
 The React chatbox calls the FastAPI service, which uses OpenAI function calling. When the model needs an order's status, it calls the Python `get_order_status` tool. The tool forwards the customer's JWT to Spring's `GET /api/orders/{orderId}` endpoint. Spring validates the JWT and returns an order only when it belongs to that customer.
+
+FastAPI loads the public OpenAI documentation MCP tools at startup and makes them available to the existing chat agent. The chat can therefore answer both order questions and OpenAI API documentation questions. The MCP tools can also be inspected directly at `GET /api/mcp/openai-docs/tools` or searched at `POST /api/mcp/openai-docs/search`.
 
 Create `agent-service/.env` from `agent-service/.env.example` and set `OPENAI_API_KEY` before starting FastAPI. Never commit this file or the key.
 
