@@ -1,24 +1,35 @@
-from typing import Optional
+from typing import Annotated, Optional
 
-from fastapi import APIRouter, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 
+from app.agents.order_agent import OrderAgent
+from app.clients.spring_client import SpringClient
 from app.models import AskRequest, AskResponse
 
 router = APIRouter(prefix="/api/ai", tags=["AI"])
 
 
+def get_order_agent(request: Request) -> OrderAgent:
+    return request.app.state.order_agent
+
+
+def get_spring_client(request: Request) -> SpringClient:
+    return request.app.state.spring_client
+
+
 @router.post("/ask", response_model=AskResponse)
 async def ask(
     ask_request: AskRequest,
-    request: Request,
+    order_agent: Annotated[OrderAgent, Depends(get_order_agent)],
+    spring_client: Annotated[SpringClient, Depends(get_spring_client)],
     authorization: Optional[str] = Header(default=None),
 ) -> AskResponse:
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="A bearer token is required.")
 
-    answer = await request.app.state.order_agent.answer(
+    answer = await order_agent.answer(
         ask_request.message,
         authorization,
-        request.app.state.spring_client,
+        spring_client,
     )
     return AskResponse(answer=answer)
