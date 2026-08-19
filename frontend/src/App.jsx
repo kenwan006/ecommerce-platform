@@ -86,6 +86,7 @@ export default function App() {
   const authenticate = async (mode, details) => {
     try {
       const loggedInUser = mode === 'login' ? await api.login(details) : await api.register(details);
+      localStorage.setItem('accessToken', loggedInUser.accessToken);
       setUser(loggedInUser);
       setNotice(`Welcome, ${loggedInUser.name}.`);
     } catch (error) {

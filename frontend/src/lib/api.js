@@ -1,8 +1,9 @@
 const API_URL = 'http://localhost:8080/api';
+const AI_API_URL = 'http://localhost:8000/api';
 
-async function request(path, options) {
+async function request(path, options, apiUrl = API_URL) {
   const accessToken = localStorage.getItem('accessToken');
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await fetch(`${apiUrl}${path}`, {
     ...options,
     headers: {
       ...(options?.headers || {}),
@@ -25,6 +26,6 @@ export const api = {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ message }),
-  }),
+  }, AI_API_URL),
   createCheckout: (checkout) => request('/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(checkout) }),
 };
