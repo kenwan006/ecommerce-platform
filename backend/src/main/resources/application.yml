@@ -2,7 +2,7 @@ spring:
   datasource:
     url: jdbc:mysql://localhost:3306/ecommerce?useSSL=false&serverTimezone=UTC
     username: root
-    password: 7407
+    password: ${DB_PASSWORD:}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -13,8 +13,8 @@ server:
   error:
     include-message: never
 stripe:
-  secret-key: my-key
-  webhook-secret: my-webhook-secret
+  secret-key: ${STRIPE_SECRET_KEY:}
+  webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
 
 management:
   endpoints:

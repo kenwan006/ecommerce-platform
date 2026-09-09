@@ -4,6 +4,8 @@ import com.example.shop.service.StripeWebhookService;
 import com.stripe.exception.SignatureVerificationException;
 import com.stripe.model.Event;
 import com.stripe.net.Webhook;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,6 +17,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/stripe")
 public class StripeWebhookController {
+  private static final Logger logger = LoggerFactory.getLogger(StripeWebhookController.class);
+
   private final StripeWebhookService webhookService;
   private final String webhookSecret;
 
@@ -34,6 +38,7 @@ public class StripeWebhookController {
       webhookService.handle(event);
       return ResponseEntity.ok().build();
     } catch (SignatureVerificationException | IllegalArgumentException exception) {
+      logger.warn("Rejected Stripe webhook: {}", exception.getMessage());
       return ResponseEntity.badRequest().build();
     }
   }

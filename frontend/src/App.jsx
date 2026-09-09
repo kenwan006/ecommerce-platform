@@ -3,6 +3,7 @@ import Account from './components/Account';
 import Cart from './components/Cart';
 import ChatBox from './components/ChatBox';
 import Checkout from './components/Checkout';
+import CheckoutErrorBoundary from './components/CheckoutErrorBoundary';
 import Header from './components/Header';
 import Notice from './components/Notice';
 import Shop from './components/Shop';
@@ -108,11 +109,13 @@ export default function App() {
         />
       )}
       {view === 'checkout' && paymentIntent && (
-        <Checkout
-          clientSecret={paymentIntent.clientSecret}
-          total={paymentIntent.amount / 100}
-          onPaymentComplete={completeCheckout}
-        />
+        <CheckoutErrorBoundary resetKey={paymentIntent.paymentIntentId}>
+          <Checkout
+            clientSecret={paymentIntent.clientSecret}
+            total={paymentIntent.total}
+            onPaymentComplete={completeCheckout}
+          />
+        </CheckoutErrorBoundary>
       )}
       {view === 'account' && (
         <Account

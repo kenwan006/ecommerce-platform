@@ -1,6 +1,6 @@
 import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { formatCurrency } from '../lib/formatters';
 
 const publishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;

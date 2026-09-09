@@ -43,6 +43,15 @@ export VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
 
 Alternatively, copy `frontend/.env.example` to `frontend/.env.local` for Vite. Never commit real Stripe keys.
 
+Use these cards only while the app is configured with `sk_test_...` and `pk_test_...` keys:
+
+| Scenario | Card number | Expiry | CVC |
+| --- | --- | --- | --- |
+| Successful Visa payment | `4242 4242 4242 4242` | Any future date | Any three digits |
+| Generic card decline | `4000 0000 0000 0002` | Any future date | Any three digits |
+
+Do not enter a real card number in Stripe test mode or use a Stripe test card with live keys.
+
 The UI sends `userId`, one client-generated `checkoutId`, and `{ productId, quantity }` items to `/api/checkout`. The API creates a `PENDING` order first, calculates the amount from its own database, and creates a Stripe PaymentIntent linked to that order. The `checkoutId` is used as Stripe's idempotency key, so retries do not create duplicate PaymentIntents. Stripe's signed webhook changes the order to `PAID` and decrements stock after `payment_intent.succeeded`. Card data is sent directly from Stripe Elements to Stripe, never to this API.
 
 ## Google sign-in (local demo)
