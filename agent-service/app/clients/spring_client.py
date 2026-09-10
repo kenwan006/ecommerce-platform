@@ -29,3 +29,12 @@ class SpringClient:
             )
         response.raise_for_status()
         return response.json()
+
+    async def get_orders(self, authorization: str) -> list:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(
+                f"{self.base_url}/api/orders",
+                headers={"Authorization": authorization},
+            )
+        response.raise_for_status()
+        return response.json()

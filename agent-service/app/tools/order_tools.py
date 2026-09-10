@@ -28,3 +28,13 @@ async def get_pending_orders(
     return await context.context.spring_client.get_pending_payment_orders(
         context.context.authorization,
     )
+
+
+@function_tool
+async def get_recent_orders(
+    context: RunContextWrapper[AgentRequestContext],
+) -> list:
+    """Get all recent orders for the signed-in customer, including paid and pending orders."""
+    return await context.context.spring_client.get_orders(
+        context.context.authorization,
+    )

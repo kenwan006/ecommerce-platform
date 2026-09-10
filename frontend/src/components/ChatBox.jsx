@@ -20,18 +20,24 @@ export default function ChatBox() {
     setMessage('');
     setMessages(current => [...current, { role: 'user', text }]);
     setIsSending(true);
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 35_000);
     try {
-      const response = await api.askAi(text);
+      const response = await api.askAi(text, controller.signal);
       setMessages(current => [...current, {
         role: 'assistant',
         text: response.answer || response.reply || response.message || 'I could not generate a response.',
       }]);
     } catch (error) {
+      const message = error.name === 'AbortError'
+        ? 'The assistant took too long to respond. Please try again.'
+        : `Sorry, I could not reach the assistant. ${error.message}`;
       setMessages(current => [...current, {
         role: 'assistant',
-        text: `Sorry, I could not reach the assistant. ${error.message}`,
+        text: message,
       }]);
     } finally {
+      window.clearTimeout(timeout);
       setIsSending(false);
     }
   };

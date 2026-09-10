@@ -94,6 +94,15 @@ export default function App() {
       setNotice(error.message);
     }
   };
+  const signOut = () => {
+    localStorage.removeItem('accessToken');
+    setUser(null);
+    setCart([]);
+    setPaymentIntent(null);
+    setCheckoutId(null);
+    setView('shop');
+    setNotice('You have signed out.');
+  };
   return (
     <main>
     <Header cartCount={cartCount} user={user} onNavigate={setView} />
@@ -121,10 +130,7 @@ export default function App() {
         <Account
           user={user}
           onAuthenticate={authenticate}
-          onSignOut={() => {
-            localStorage.removeItem('accessToken');
-            setUser(null);
-          }}
+          onSignOut={signOut}
         />
       )}
       <ChatBox />

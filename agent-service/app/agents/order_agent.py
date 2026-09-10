@@ -1,12 +1,16 @@
+import asyncio
+
 from agents import Agent, Runner
 from agents.mcp import MCPServerStreamableHttp
 
 from app.agents.context import AgentRequestContext
 from app.clients.spring_client import SpringClient
-from app.tools.order_tools import get_order_status, get_pending_orders
+from app.tools.order_tools import get_order_status, get_pending_orders, get_recent_orders
 
 
 class OrderAgent:
+    REQUEST_TIMEOUT_SECONDS = 30
+
     def __init__(self, mcp_servers: list[MCPServerStreamableHttp]):
         self.agent = Agent(
             name="E-commerce Assistant",
@@ -14,8 +18,9 @@ class OrderAgent:
             instructions=(
                 "You are the ecommerce order assistant. Help customers with their orders. "
                 "Use get_order_status when the customer provides an order ID. "
-                "Use get_pending_orders when the customer asks generally about their order "
-                "status or pending orders without providing an order ID. "
+                "Use get_recent_orders when the customer asks generally about their order "
+                "status without providing an order ID. Use get_pending_orders only when "
+                "they specifically ask about pending orders or pending payments. "
                 "Use the OpenAI documentation MCP tools for questions about OpenAI APIs, "
                 "models, or SDKs. Explain both the order status and payment status. "
                 "Use the GitHub MCP tools for questions about repositories, issues, pull "
@@ -26,7 +31,7 @@ class OrderAgent:
                 "tool returns an authentication or authorization error. "
                 "Do not invent order data."
             ),
-            tools=[get_order_status, get_pending_orders],
+            tools=[get_order_status, get_pending_orders, get_recent_orders],
             mcp_servers=mcp_servers,
         )
 
@@ -36,12 +41,19 @@ class OrderAgent:
         authorization: str,
         spring_client: SpringClient,
     ) -> str:
-        result = await Runner.run(
-            self.agent,
-            question,
-            context=AgentRequestContext(
-                authorization=authorization,
-                spring_client=spring_client,
-            ),
-        )
+        try:
+            result = await asyncio.wait_for(
+                Runner.run(
+                    self.agent,
+                    question,
+                    context=AgentRequestContext(
+                        authorization=authorization,
+                        spring_client=spring_client,
+                    ),
+                    max_turns=6,
+                ),
+                timeout=self.REQUEST_TIMEOUT_SECONDS,
+            )
+        except asyncio.TimeoutError as exception:
+            raise TimeoutError("The assistant took too long to respond. Please try again.") from exception
         return str(result.final_output)
