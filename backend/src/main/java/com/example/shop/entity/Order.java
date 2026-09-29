@@ -48,6 +48,7 @@ public class Order {
   private List<OrderItem> items = new ArrayList<>();
 
   public Long getId() { return id; }
+  public User getUser() { return user; }
   public BigDecimal getTotal() { return total; }
   public String getStatus() { return status; }
   public String getStripePaymentIntentId() { return stripePaymentIntentId; }
