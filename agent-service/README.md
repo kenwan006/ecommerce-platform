@@ -1,5 +1,16 @@
 # Ecommerce agent service
 
+## Role and startup
+
+This FastAPI service runs separately from the Spring services on `http://localhost:8000`. React sends chat requests to `POST /api/ai/ask`; the agent forwards the customer's bearer JWT only when an order tool needs Commerce data.
+
+```bash
+source .venv/bin/activate
+uvicorn app.main:app --reload --port 8000
+```
+
+It is not an order, payment, or inventory system of record. Commerce (`8080`) owns customer/order data; Warehouse (`8082`) owns stock and fulfillment; Payment (`8083`) owns Stripe payment processing. See the root [README](../README.md) for the complete local startup sequence.
+
 ## Internal-document RAG
 
 Place approved internal policy and guide documents as UTF-8 `.md` or `.txt`

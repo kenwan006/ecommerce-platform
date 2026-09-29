@@ -7,7 +7,7 @@ sequenceDiagram
     autonumber
     actor Customer
     participant UI as React UI (5173)
-    participant API as Spring API (8080)
+    participant API as Commerce service (8080)
     participant Google as Google
 
     Customer->>UI: Click Continue with Google

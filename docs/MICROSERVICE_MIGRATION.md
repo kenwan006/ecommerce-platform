@@ -24,7 +24,7 @@ Kafka-compatible Redpanda events are for downstream state changes:
 
 - `PaymentSucceeded` -> Commerce marks order paid; Warehouse confirms reservation and creates fulfillment.
 - `PaymentFailed` -> Commerce marks order failed; Warehouse releases reservation.
-- `ShipmentCreated` -> Commerce updates customer-visible order state; Notification sends tracking information.
+- `ShipmentCreated` -> Commerce updates customer-visible order state; Notification sends tracking information. This is planned, not implemented yet.
 
 The payment service must use the outbox pattern: store payment state and an outbox row in one transaction, then publish the row asynchronously. Consumers must be idempotent using the event ID.
 
@@ -51,8 +51,18 @@ Start Kafka-compatible Redpanda:
 docker compose -f docker-compose.infrastructure.yml up -d
 ```
 
-The current frontend continues to use `http://localhost:8080` until the gateway phase.
-# Commerce database migration
+The current frontend uses Commerce at `http://localhost:8080` for customer flows and directly calls Warehouse at `http://localhost:8082/api` for the warehouse operations page. A gateway is deliberately deferred.
+
+## Kafka listener setup
+
+Spring Boot creates Kafka listener-container infrastructure from `spring-kafka` and `spring.kafka.bootstrap-servers`. `@EnableKafka` enables discovery of `@KafkaListener` methods. The current listeners are:
+
+- Commerce group `commerce-service`: updates the local order payment state.
+- Warehouse group `warehouse-service`: confirms/releases the local reservation and creates fulfillment work.
+
+Both consume `payment-events`. `auto-offset-reset: earliest` is configured for local replay testing, and `processed_events` makes repeated delivery safe.
+
+## Commerce database migration
 
 Commerce now uses `sunridge_commerce`; the legacy `ecommerce` database remains unchanged.
 

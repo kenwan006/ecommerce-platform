@@ -1,102 +1,51 @@
 # E-commerce Platform Handoff
 
-## Services
+## Current state
 
-- **React/Vite UI**: `http://localhost:5173`
-- **Spring Boot API**: `http://localhost:8080`
-- **FastAPI AI agent**: `http://localhost:8000`
-- **MySQL**: local database, managed by Flyway migrations
-- **Stripe CLI**: forwards payment webhooks to Spring Boot
+The working demo has been split into three Spring Boot service domains while the Commerce service remains in the historical `backend/` folder during the migration:
 
-## Local startup
+- **Commerce** — `backend/`, port `8080`, database `sunridge_commerce`
+- **Warehouse** — `services/warehouse-service/`, port `8082`, database `sunridge_warehouse`
+- **Payment** — `services/payment-service/`, port `8083`, database `sunridge_payment`
+- **React UI** — `frontend/`, port `5173`
+- **FastAPI agent** — `agent-service/`, port `8000`
+- **Redpanda** — Kafka-compatible broker on `9092`
 
-```bash
-# Spring Boot
-cd backend
-SPRING_PROFILES_ACTIVE=local mvn spring-boot:run
+`ecommerce` is retained only as the legacy local database. It is not modified by the new Commerce datasource or the optional copy script.
 
-# React
-cd frontend
-npm run dev
+## Service communication
 
-# AI agent
-cd agent-service
-source .venv/bin/activate
-python -m uvicorn app.main:app --reload --port 8000
+| From | To | Style | Purpose |
+| --- | --- | --- | --- |
+| React | Commerce | REST | login, catalog, checkout, orders |
+| React | Warehouse | REST | operations UI: inventory, adjustments, fulfillment shipping |
+| Commerce | Warehouse | REST | product projection and stock reservation |
+| Commerce | Payment | REST | create/reuse Stripe PaymentIntent |
+| Payment | Commerce and Warehouse | Kafka `payment-events` | final payment state |
 
-# Stripe webhook listener
-stripe listen \
-  --events payment_intent.succeeded,payment_intent.payment_failed \
-  --forward-to localhost:8080/api/stripe/webhook
-```
+Payment uses an outbox table and a scheduled publisher. Commerce and Warehouse consume with different consumer groups and each records event IDs in `processed_events` for idempotency.
 
-Credentials are local-only and ignored by Git: Spring's `application-local.yml`, the agent `.env`, and frontend `.env.local`.
+## Startup order
 
-## Authentication
+1. Start local MySQL.
+2. Start Redpanda: `docker compose -f docker-compose.infrastructure.yml up -d`.
+3. Start Warehouse and Payment with the `local` Spring profile.
+4. Start Commerce with the `local` Spring profile.
+5. Run `stripe listen --forward-to localhost:8083/api/stripe/webhook`.
+6. Start React and FastAPI as needed.
 
-- Local email/password login creates the platform JWT.
-- Google login is OIDC authorization-code flow through Spring Security.
-- React navigates to `/oauth2/authorization/google`; Spring redirects to Google.
-- On callback, Spring finds/creates the local user, creates a JWT, and redirects React with it in the URL fragment.
-- React stores the JWT and sends it as `Authorization: Bearer ...`.
+All real credentials are only in ignored local files or environment variables:
 
-## Checkout, payment, fraud
+- `backend/src/main/resources/application-local.yml`
+- `services/warehouse-service/src/main/resources/application-local.yml`
+- `services/payment-service/src/main/resources/application-local.yml`
+- `agent-service/.env`
+- `frontend/.env.local`
 
-1. React creates one `checkoutId` and sends it with cart items.
-2. Spring creates/reuses the order by `checkoutId`; Stripe uses that ID as its idempotency key.
-3. Inventory is reserved for 15 minutes before payment.
-4. The demo fraud service assesses the order before the PaymentIntent is created.
-5. Stripe Elements sends card data directly to Stripe.
-6. Stripe webhook is signature-verified by Spring.
-7. Payment success marks the order paid, confirms the reservation, and creates fulfillment work.
-8. Payment failure, fraud decline, or reservation expiry releases the reservation.
+## Current limitations and next work
 
-The fraud ML scorer is a deliberately simple in-process logistic-regression demo. A production scorer should be a versioned HTTP/gRPC ML service with timeouts, fallback, and monitoring.
-
-## Inventory and shipping
-
-- `products` is the catalog/SKU-level product. This demo uses interchangeable stock, not one record per physical item.
-- `inventory_levels` stores current `on_hand`, `reserved`, and available quantity for a product at a warehouse.
-- `inventory_reservations` holds stock during checkout, then becomes confirmed after payment.
-- `inventory_movements` is an append-only ledger for initial migration balance, manual imports, exports, and shipments.
-- `fulfillment_orders` and `fulfillment_items` represent warehouse work for a paid customer order.
-- `shipments` records carrier and tracking number.
-
-Warehouse flow:
-
-1. A paid order becomes `READY_TO_PICK`.
-2. Warehouse UI shows it under **Orders ready to ship**.
-3. Enter tracking number and select **Mark shipped**.
-4. The order becomes `SHIPPED`; reserved and on-hand stock are reduced; a shipment and movement-ledger entry are created.
-
-Warehouse UI supports manual imports and exports. Exports cannot consume stock reserved for customer orders.
-
-## AI agent
-
-- React chatbox calls FastAPI, not Spring Boot.
-- FastAPI uses an OpenAI agent with function tools.
-- Order tools call Spring REST APIs and forward the user JWT.
-- The agent also connects to OpenAI documentation and GitHub MCP servers.
-- Agent setup is intentionally demo-oriented; more agents/routing can be added later if distinct responsibilities emerge.
-
-## Main API areas
-
-- `/api/auth/*` — local authentication and current user
-- `/api/products` — catalog
-- `/api/checkout` — idempotent checkout / Stripe PaymentIntent
-- `/api/stripe/webhook` — Stripe events
-- `/api/orders/*` — customer order access
-- `/api/warehouse/inventory` — inventory balances
-- `/api/warehouse/inventory/movements` — movement ledger; POST imports/exports
-- `/api/warehouse/fulfillments` — ready-to-ship work
-- `/api/warehouse/fulfillments/{id}/ship` — dispatch a shipment
-
-## Important current limitations / good next work
-
-- Warehouse endpoints require a JWT but have no staff/warehouse role authorization yet.
-- Cart is only stored in browser local storage; add cart/cart-item tables to persist it per user.
-- Add automated tests for inventory reservation, movement ledger, and webhook-to-fulfillment flow.
-- Introduce a payment-provider abstraction before adding PayPal/Adyen.
-- Add asynchronous processing/queues and Redis when higher payment throughput is needed.
-- Add serial-number or lot tracking only for product categories that need traceability.
-- Keep real API keys out of Git; this repository is configured to use ignored local files/environment variables.
+- Commerce source still contains legacy local Warehouse code. Remove it after the extracted services are fully verified and Commerce is moved/renamed under `services/`.
+- Browser traffic has no API gateway yet; React directly calls Commerce and the Warehouse operations API.
+- Payment webhook-event persistence/deduplication should be completed in addition to the current payment-status guard.
+- Add service-to-service authentication, staff roles for Warehouse, retries/dead-letter topics, observability, and CI/CD before a production deployment.
+- The cart remains in browser storage; introduce persistent cart tables later.
