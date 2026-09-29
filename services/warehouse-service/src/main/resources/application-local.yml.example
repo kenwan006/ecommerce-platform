@@ -1,0 +1,3 @@
+spring:
+  datasource:
+    password: replace-with-your-local-mysql-password

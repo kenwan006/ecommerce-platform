@@ -7,12 +7,15 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.example.shop.client.StripeClient;
+import com.example.shop.client.WarehouseClient;
+import com.example.shop.client.PaymentClient;
 import com.example.shop.dto.CheckoutRequest;
 import com.example.shop.dto.CheckoutResponse;
 import com.example.shop.entity.Order;
 import com.example.shop.fraud.FraudAssessmentService;
 import com.example.shop.fraud.model.FraudDecision;
 import com.example.shop.fraud.model.FraudDecisionResult;
+import com.example.shop.inventory.InventoryService;
 import com.example.shop.repository.OrderRepository;
 import com.stripe.model.PaymentIntent;
 import java.math.BigDecimal;
@@ -26,7 +29,11 @@ class CheckoutServiceTest {
     StripeClient stripe = mock(StripeClient.class);
     OrderService orderService = mock(OrderService.class);
     FraudAssessmentService fraudAssessmentService = mock(FraudAssessmentService.class);
-    CheckoutService service = new CheckoutService(orders, stripe, orderService, fraudAssessmentService);
+    InventoryService inventoryService = mock(InventoryService.class);
+    WarehouseClient warehouseClient = mock(WarehouseClient.class);
+    PaymentClient paymentClient = mock(PaymentClient.class);
+    CheckoutService service = new CheckoutService(
+        orders, stripe, orderService, fraudAssessmentService, inventoryService, warehouseClient, paymentClient);
     CheckoutRequest request = new CheckoutRequest(7L, "checkout-123", List.of(new CheckoutRequest.Item(9L, 1)));
 
     Order originalOrder = new Order();

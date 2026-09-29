@@ -1,0 +1,26 @@
+spring:
+  application:
+    name: warehouse-service
+  datasource:
+    url: jdbc:mysql://localhost:3306/sunridge_warehouse?useSSL=false&serverTimezone=UTC
+    username: root
+    password: ${DB_PASSWORD:}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      auto-offset-reset: earliest
+
+server:
+  port: 8082
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

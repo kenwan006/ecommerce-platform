@@ -2,9 +2,11 @@
 frontend/node_modules/
 frontend/dist/
 backend/target/
+services/*/target/
 .env
 frontend/.env.local
 backend/src/main/resources/application-local.yml
+services/*/src/main/resources/application-local.yml
 agent-service/.env
 agent-service/.venv/
 __pycache__/

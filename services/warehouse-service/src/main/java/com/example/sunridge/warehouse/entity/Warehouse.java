@@ -1,0 +1,26 @@
+package com.example.sunridge.warehouse.entity;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
+@Entity
+@Table(name = "warehouses")
+public class Warehouse {
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
+
+  private String code;
+  private String name;
+
+  public Long getId() {
+    return id;
+  }
+
+  public String getCode() {
+    return code;
+  }
+}

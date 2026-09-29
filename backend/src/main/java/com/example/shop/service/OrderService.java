@@ -68,11 +68,6 @@ public class OrderService {
     for (CheckoutRequest.Item requested : request.items()) {
       Product product = productRepository.findById(requested.productId())
           .orElseThrow(() -> new IllegalArgumentException("Product not found: " + requested.productId()));
-      if (product.getStock() < requested.quantity()) {
-        throw new IllegalStateException(product.getName() + " is out of stock");
-      }
-      product.setStock(product.getStock() - requested.quantity());
-
       OrderItem item = new OrderItem();
       item.setProduct(product);
       item.setQuantity(requested.quantity());
@@ -82,7 +77,6 @@ public class OrderService {
     }
 
     order.setTotal(total);
-    order.setStockReserved(true);
     return orderRepository.save(order);
   }
 

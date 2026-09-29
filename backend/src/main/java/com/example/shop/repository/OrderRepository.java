@@ -4,6 +4,7 @@ import com.example.shop.entity.Order;
 import java.util.List;
 import java.util.Optional;
 import java.time.Instant;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 public interface OrderRepository extends JpaRepository<Order, Long> {
   List<Order> findByUserIdOrderByCreatedAtDesc(Long userId);
@@ -12,6 +13,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
   Optional<Order> findByIdAndUserId(Long orderId, Long userId);
 
+  @EntityGraph(attributePaths = {"items", "items.product"})
   Optional<Order> findByUserIdAndCheckoutId(Long userId, String checkoutId);
 
   Optional<Order> findByStripePaymentIntentId(String paymentIntentId);

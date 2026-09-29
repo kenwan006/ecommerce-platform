@@ -60,6 +60,11 @@ The Spring API runs at `http://localhost:8080/api`, the FastAPI agent at `http:/
 - `POST /api/stripe/webhook` — receive Stripe payment status events
 - `GET /api/orders/{orderId}` — authenticated customer's order details
 - `GET /api/orders/pending-payments` — authenticated customer's orders with pending payment
+- `GET /api/warehouse/inventory` — inventory position for the warehouse page
+- `GET /api/warehouse/inventory/movements` — latest stock movement ledger entries
+- `POST /api/warehouse/inventory/movements` — import or export stock manually
+- `GET /api/warehouse/fulfillments` — paid orders ready to ship
+- `POST /api/warehouse/fulfillments/{fulfillmentId}/ship` — create a shipment and deduct inventory
 
 ## AI order assistant
 
@@ -90,7 +95,20 @@ Use these cards only while the app is configured with `sk_test_...` and `pk_test
 
 Do not enter a real card number in Stripe test mode or use a Stripe test card with live keys.
 
-The UI sends `userId`, one client-generated `checkoutId`, and `{ productId, quantity }` items to `/api/checkout`. The API creates a `PENDING` order first, calculates the amount from its own database, and creates a Stripe PaymentIntent linked to that order. The `checkoutId` is used as Stripe's idempotency key, so retries do not create duplicate PaymentIntents. Stripe's signed webhook changes the order to `PAID` and decrements stock after `payment_intent.succeeded`. Card data is sent directly from Stripe Elements to Stripe, never to this API.
+The UI sends `userId`, one client-generated `checkoutId`, and `{ productId, quantity }` items to `/api/checkout`. The API creates a `PENDING` order first, calculates the amount from its own database, and creates a Stripe PaymentIntent linked to that order. The `checkoutId` is used as Stripe's idempotency key, so retries do not create duplicate PaymentIntents. Card data is sent directly from Stripe Elements to Stripe, never to this API.
+
+## Inventory and shipping demo
+
+Inventory is now held through an explicit reservation rather than decrementing product stock during checkout:
+
+1. Checkout reserves available units for 15 minutes.
+2. Fraud decline, Stripe payment failure, or reservation expiry releases the held units.
+3. The successful Stripe webhook marks the reservation confirmed and creates a `READY_TO_PICK` fulfillment order.
+4. Open **Warehouse** in the React navigation. Enter a tracking number and select **Mark shipped**. This creates a shipment, changes the order to `SHIPPED`, and deducts both the reserved and on-hand inventory.
+
+`inventory_levels` holds the current balance. `inventory_movements` is an append-only audit ledger: it records initial stock, imports, exports, and shipments. The Warehouse page can import new stock or export unreserved stock and shows the latest movements.
+
+The initial migration creates a `MAIN` warehouse and seeds its on-hand inventory from the existing product `stock` values. The warehouse endpoints are intentionally open to any authenticated demo user; add staff roles and authorization rules before treating this as a production operations UI.
 
 ## Google sign-in (local demo)
 

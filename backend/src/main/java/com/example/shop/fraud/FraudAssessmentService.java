@@ -2,11 +2,10 @@ package com.example.shop.fraud;
 
 import com.example.shop.entity.FraudAssessment;
 import com.example.shop.entity.Order;
-import com.example.shop.entity.OrderItem;
-import com.example.shop.entity.Product;
 import com.example.shop.fraud.model.FraudDecision;
 import com.example.shop.fraud.model.FraudDecisionResult;
 import com.example.shop.fraud.model.FraudFeatures;
+import com.example.shop.inventory.InventoryService;
 import com.example.shop.repository.FraudAssessmentRepository;
 import com.example.shop.repository.OrderRepository;
 import java.util.Arrays;
@@ -22,6 +21,7 @@ public class FraudAssessmentService {
   private final RuleEngine ruleEngine;
   private final MlClient mlClient;
   private final DecisionEngine decisionEngine;
+  private final InventoryService inventoryService;
 
   public FraudAssessmentService(
       OrderRepository orderRepository,
@@ -29,13 +29,15 @@ public class FraudAssessmentService {
       FeatureService featureService,
       RuleEngine ruleEngine,
       MlClient mlClient,
-      DecisionEngine decisionEngine) {
+      DecisionEngine decisionEngine,
+      InventoryService inventoryService) {
     this.orderRepository = orderRepository;
     this.assessmentRepository = assessmentRepository;
     this.featureService = featureService;
     this.ruleEngine = ruleEngine;
     this.mlClient = mlClient;
     this.decisionEngine = decisionEngine;
+    this.inventoryService = inventoryService;
   }
 
   @Transactional
@@ -61,24 +63,13 @@ public class FraudAssessmentService {
     assessmentRepository.save(assessment);
 
     if (decision.decision() == FraudDecision.DECLINE) {
-      releaseReservedStock(order);
+      inventoryService.release(orderId);
       order.setPaymentStatus("FRAUD_DECLINED");
       order.setStatus("FRAUD_DECLINED");
     } else if (decision.decision() == FraudDecision.REVIEW) {
       order.setStatus("FRAUD_REVIEW");
     }
     return decision;
-  }
-
-  private void releaseReservedStock(Order order) {
-    if (!order.isStockReserved()) {
-      return;
-    }
-    for (OrderItem item : order.getItems()) {
-      Product product = item.getProduct();
-      product.setStock(product.getStock() + item.getQuantity());
-    }
-    order.setStockReserved(false);
   }
 
   private List<String> splitReasons(String reasons) {

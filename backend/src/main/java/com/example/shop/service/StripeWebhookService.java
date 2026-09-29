@@ -1,8 +1,9 @@
 package com.example.shop.service;
 
 import com.example.shop.entity.Order;
-import com.example.shop.entity.OrderItem;
-import com.example.shop.entity.Product;
+import com.example.shop.client.WarehouseClient;
+import com.example.shop.inventory.InventoryService;
+import com.example.shop.shipping.FulfillmentService;
 import com.example.shop.repository.OrderRepository;
 import com.stripe.exception.EventDataObjectDeserializationException;
 import com.stripe.model.Event;
@@ -14,9 +15,19 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class StripeWebhookService {
   private final OrderRepository orders;
+  private final InventoryService inventoryService;
+  private final FulfillmentService fulfillmentService;
+  private final WarehouseClient warehouseClient;
 
-  public StripeWebhookService(OrderRepository orders) {
+  public StripeWebhookService(
+      OrderRepository orders,
+      InventoryService inventoryService,
+      FulfillmentService fulfillmentService,
+      WarehouseClient warehouseClient) {
     this.orders = orders;
+    this.inventoryService = inventoryService;
+    this.fulfillmentService = fulfillmentService;
+    this.warehouseClient = warehouseClient;
   }
 
   @Transactional
@@ -49,18 +60,17 @@ public class StripeWebhookService {
       return;
     }
 
-    if (failed && order.isStockReserved()) {
-      for (OrderItem item : order.getItems()) {
-        Product product = item.getProduct();
-        product.setStock(product.getStock() + item.getQuantity());
-      }
-      order.setStockReserved(false);
+    if (failed) {
+      if (warehouseClient.isEnabled()) warehouseClient.release(order.getId());
+      else inventoryService.release(order.getId());
       order.setPaymentStatus("FAILED");
       order.setStatus("CANCELLED");
     } else if (succeeded) {
-      order.setStockReserved(false);
+      if (warehouseClient.isEnabled()) warehouseClient.confirm(order.getId());
+      else inventoryService.confirm(order.getId());
       order.setPaymentStatus("PAID");
       order.setStatus("PAID");
+      if (!warehouseClient.isEnabled()) fulfillmentService.createForPaidOrder(order.getId());
     }
     orders.save(order);
   }

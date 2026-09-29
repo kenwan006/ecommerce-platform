@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/ecommerce?useSSL=false&serverTimezone=UTC
+    url: ${COMMERCE_DB_URL:jdbc:mysql://localhost:3306/sunridge_commerce?useSSL=false&serverTimezone=UTC}
     username: root
     password: ${DB_PASSWORD:}
   jpa:
@@ -9,6 +9,10 @@ spring:
     open-in-view: false
   flyway:
     enabled: true
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      auto-offset-reset: earliest
 server:
   error:
     include-message: never
@@ -27,3 +31,11 @@ app:
   jwt-secret: ${JWT_SECRET:}
   oauth:
     enabled: false
+
+services:
+  warehouse:
+    enabled: false
+    base-url: ${WAREHOUSE_SERVICE_URL:http://localhost:8082}
+  payment:
+    enabled: false
+    base-url: ${PAYMENT_SERVICE_URL:http://localhost:8083}

@@ -7,6 +7,7 @@ import CheckoutErrorBoundary from './components/CheckoutErrorBoundary';
 import Header from './components/Header';
 import Notice from './components/Notice';
 import Shop from './components/Shop';
+import Warehouse from './components/Warehouse';
 import { api } from './lib/api';
 
 const readStorage = (key, fallback) => JSON.parse(localStorage.getItem(key) || fallback);
@@ -133,6 +134,7 @@ export default function App() {
           onSignOut={signOut}
         />
       )}
+      {view === 'warehouse' && <Warehouse />}
       <ChatBox />
     </main>
   );
