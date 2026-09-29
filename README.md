@@ -4,10 +4,49 @@ A React storefront and Spring Boot API backed by MySQL.
 
 ## Run locally
 
-1. Start MySQL: `docker compose up -d`
-2. Start the Spring API: `cd backend && mvn spring-boot:run`
-3. Start the AI agent (Python 3.12+): `cd agent-service && python3.12 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt && uvicorn app.main:app --reload --port 8000`
-4. Start the UI: `cd frontend && npm install && npm run dev`
+Start MySQL locally before starting the backend. Docker is optional; this project also works with a locally installed MySQL server.
+
+Start the Spring Boot API with the ignored local configuration profile:
+
+```bash
+cd backend
+SPRING_PROFILES_ACTIVE=local mvn spring-boot:run
+```
+
+Start the AI agent:
+
+```bash
+cd agent-service
+source .venv/bin/activate
+python -m uvicorn app.main:app --reload --port 8000
+```
+
+Create the virtual environment and install dependencies first if it does not exist:
+
+```bash
+cd agent-service
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+Start the React UI:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Start the Stripe webhook listener in a separate terminal and leave it running while testing payments:
+
+```bash
+stripe listen \
+  --events payment_intent.succeeded,payment_intent.payment_failed \
+  --forward-to localhost:8080/api/stripe/webhook
+```
+
+Stripe CLI prints a webhook signing secret when it starts. Save that value only in the ignored local backend configuration (`backend/src/main/resources/application-local.yml`) or as `STRIPE_WEBHOOK_SECRET`, then restart Spring Boot if it changed.
 
 The Spring API runs at `http://localhost:8080/api`, the FastAPI agent at `http://localhost:8000/api`, and the UI at `http://localhost:5173`.
 
@@ -16,10 +55,9 @@ The Spring API runs at `http://localhost:8080/api`, the FastAPI agent at `http:/
 - `GET /api/products` — catalogue
 - `POST /api/auth/register` — create an account
 - `POST /api/auth/login` — validate credentials
-- `POST /api/orders` — view/create order records
+- `GET /api/orders` — authenticated customer's order history
 - `POST /api/checkout` — create a pending order and Stripe PaymentIntent
 - `POST /api/stripe/webhook` — receive Stripe payment status events
-- `GET /api/orders` — authenticated customer's order history
 - `GET /api/orders/{orderId}` — authenticated customer's order details
 - `GET /api/orders/pending-payments` — authenticated customer's orders with pending payment
 
