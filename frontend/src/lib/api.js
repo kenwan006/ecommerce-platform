@@ -22,6 +22,8 @@ export const api = {
   login: (credentials) => request('/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credentials) }),
   register: (details) => request('/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(details) }),
   currentUser: () => request('/auth/me'),
+  getOrders: () => request('/orders'),
+  getOrderShipment: orderId => request(`/orders/${orderId}/shipment`),
   googleLoginUrl: 'http://localhost:8080/oauth2/authorization/google',
   askAi: (message, signal) => request('/ai/ask', {
     method: 'POST',

@@ -2,10 +2,10 @@ package com.example.shop.fraud;
 
 import com.example.shop.entity.FraudAssessment;
 import com.example.shop.entity.Order;
+import com.example.shop.client.WarehouseClient;
 import com.example.shop.fraud.model.FraudDecision;
 import com.example.shop.fraud.model.FraudDecisionResult;
 import com.example.shop.fraud.model.FraudFeatures;
-import com.example.shop.inventory.InventoryService;
 import com.example.shop.repository.FraudAssessmentRepository;
 import com.example.shop.repository.OrderRepository;
 import java.util.Arrays;
@@ -21,7 +21,7 @@ public class FraudAssessmentService {
   private final RuleEngine ruleEngine;
   private final MlClient mlClient;
   private final DecisionEngine decisionEngine;
-  private final InventoryService inventoryService;
+  private final WarehouseClient warehouseClient;
 
   public FraudAssessmentService(
       OrderRepository orderRepository,
@@ -30,14 +30,14 @@ public class FraudAssessmentService {
       RuleEngine ruleEngine,
       MlClient mlClient,
       DecisionEngine decisionEngine,
-      InventoryService inventoryService) {
+      WarehouseClient warehouseClient) {
     this.orderRepository = orderRepository;
     this.assessmentRepository = assessmentRepository;
     this.featureService = featureService;
     this.ruleEngine = ruleEngine;
     this.mlClient = mlClient;
     this.decisionEngine = decisionEngine;
-    this.inventoryService = inventoryService;
+    this.warehouseClient = warehouseClient;
   }
 
   @Transactional
@@ -63,7 +63,7 @@ public class FraudAssessmentService {
     assessmentRepository.save(assessment);
 
     if (decision.decision() == FraudDecision.DECLINE) {
-      inventoryService.release(orderId);
+      warehouseClient.release(orderId);
       order.setPaymentStatus("FRAUD_DECLINED");
       order.setStatus("FRAUD_DECLINED");
     } else if (decision.decision() == FraudDecision.REVIEW) {

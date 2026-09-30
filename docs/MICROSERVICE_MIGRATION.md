@@ -26,6 +26,8 @@ Kafka-compatible Redpanda events are for downstream state changes:
 - `PaymentFailed` -> Commerce marks order failed; Warehouse releases reservation.
 - `ShipmentCreated` -> Commerce updates customer-visible order state; Notification sends tracking information. This is planned, not implemented yet.
 
+Warehouse now records shipment tracking events locally. Commerce exposes customer tracking only after verifying ownership of the Commerce order, then reads Warehouse through an internal endpoint. Carrier webhooks remain simulated locally; publishing shipment events to Kafka is the next step.
+
 The payment service must use the outbox pattern: store payment state and an outbox row in one transaction, then publish the row asynchronously. Consumers must be idempotent using the event ID.
 
 ## Migration sequence
@@ -34,7 +36,7 @@ The payment service must use the outbox pattern: store payment state and an outb
 2. Bring up Warehouse and Payment as independent applications with their own Flyway history.
 3. Extract Warehouse reservation/fulfillment APIs and point Commerce at them.
 4. Extract PaymentIntent/webhook processing; publish payment events.
-5. Move Commerce data to `sunridge_commerce` and remove duplicated Warehouse/Payment code from the old backend.
+5. Move Commerce data to `sunridge_commerce` and remove duplicated Warehouse/Payment code from the old backend. Commerce now uses `sunridge_commerce`; its legacy Warehouse tables are removed by Flyway migration `V14`.
 6. Add Spring Cloud Gateway as the browser's single API endpoint after service APIs stabilize.
 
 ## Local infrastructure

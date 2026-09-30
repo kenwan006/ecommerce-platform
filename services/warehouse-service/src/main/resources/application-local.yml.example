@@ -1,3 +1,6 @@
 spring:
   datasource:
     password: replace-with-your-local-mysql-password
+
+fedex:
+  webhook-security-token: replace-with-a-local-test-token

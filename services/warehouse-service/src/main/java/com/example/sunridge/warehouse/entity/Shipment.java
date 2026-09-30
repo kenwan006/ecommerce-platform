@@ -34,4 +34,20 @@ public class Shipment {
   public void setTrackingNumber(String trackingNumber) {
     this.trackingNumber = trackingNumber;
   }
+
+  public String getTrackingNumber() {
+    return trackingNumber;
+  }
+
+  public String getCarrier() {
+    return carrier;
+  }
+
+  public String getStatus() {
+    return status;
+  }
+
+  public void setStatus(String status) {
+    this.status = status;
+  }
 }

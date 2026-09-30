@@ -88,6 +88,20 @@ Set the CLI-provided webhook secret and Stripe test secret key only in `services
 
 This mixes synchronous REST for immediate checkout decisions with Kafka for state changes that multiple services react to. Consumers store processed event IDs, so at-least-once delivery is safe.
 
+## Shipment tracking demo
+
+After a warehouse worker marks a fulfillment shipped, the customer can open **Account → Track shipment**. React calls Commerce, which verifies that the selected order belongs to the signed-in customer before calling Warehouse's internal shipment endpoint. The browser never queries Warehouse by an arbitrary tracking number.
+
+Warehouse keeps a separate `shipment_tracking_events` ledger for carrier history. This is distinct from Kafka's `processed_events` inbox table. For local development, simulate FedEx-style updates through the local-profile-only endpoint:
+
+```bash
+curl -X POST http://localhost:8082/api/carriers/fedex/webhook/test \
+  -H 'Content-Type: application/json' \
+  -d '{"eventId":"demo-fedex-1002-la","trackingNumber":"DEMO-FEDEX-1002","status":"IN_TRANSIT","location":"Los Angeles, CA","description":"Arrived at FedEx location"}'
+```
+
+The production-shaped endpoint is `POST /api/carriers/fedex/webhook`; it validates an HMAC signature when a FedEx webhook security token is configured. The local test endpoint deliberately avoids any FedEx account or public HTTPS callback requirement.
+
 ## Database migration
 
 Commerce starts against `sunridge_commerce` and Flyway creates its schema on first startup. To copy existing demo users, catalog, orders, order items, and fraud assessments from the legacy database, run:

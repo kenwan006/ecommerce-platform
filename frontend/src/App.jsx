@@ -7,6 +7,7 @@ import CheckoutErrorBoundary from './components/CheckoutErrorBoundary';
 import Header from './components/Header';
 import Notice from './components/Notice';
 import Shop from './components/Shop';
+import Tracking from './components/Tracking';
 import Warehouse from './components/Warehouse';
 import { api } from './lib/api';
 
@@ -134,6 +135,7 @@ export default function App() {
           onSignOut={signOut}
         />
       )}
+      {view === 'tracking' && user && <Tracking />}
       {view === 'warehouse' && <Warehouse />}
       <ChatBox />
     </main>

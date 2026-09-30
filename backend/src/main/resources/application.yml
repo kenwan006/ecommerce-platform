@@ -16,10 +16,6 @@ spring:
 server:
   error:
     include-message: never
-stripe:
-  secret-key: ${STRIPE_SECRET_KEY:}
-  webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
-
 management:
   endpoints:
     web:
@@ -34,8 +30,6 @@ app:
 
 services:
   warehouse:
-    enabled: false
     base-url: ${WAREHOUSE_SERVICE_URL:http://localhost:8082}
   payment:
-    enabled: false
     base-url: ${PAYMENT_SERVICE_URL:http://localhost:8083}

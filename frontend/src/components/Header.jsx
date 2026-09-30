@@ -9,6 +9,7 @@ export default function Header({ cartCount, user, onNavigate }) {
     <nav>
       <button onClick={() => onNavigate('shop')}>Shop</button>
       <button onClick={() => onNavigate('warehouse')}>Warehouse</button>
+      {user && <button onClick={() => onNavigate('tracking')}>Track shipment</button>}
         <button onClick={() => onNavigate('account')}>{user ? user.name : 'Account'}</button>
         <button className="cart-button" onClick={() => onNavigate('cart')}>
           Bag <b>{cartCount}</b>

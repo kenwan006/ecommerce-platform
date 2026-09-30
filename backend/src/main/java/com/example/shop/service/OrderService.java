@@ -50,6 +50,13 @@ public class OrderService {
         .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
   }
 
+  @Transactional(readOnly = true)
+  public void requireOrderOwnership(Long orderId, Long userId) {
+    if (orderRepository.findByIdAndUserId(orderId, userId).isEmpty()) {
+      throw new ResourceNotFoundException("Order not found");
+    }
+  }
+
   /** Persists the local checkout operation before any call to an external payment provider. */
   @Transactional
   public Order getOrCreateCheckout(CheckoutRequest request) {

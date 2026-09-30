@@ -10,18 +10,11 @@ import org.springframework.web.client.RestClient;
 
 @Component
 public class WarehouseClient {
-  private final boolean enabled;
   private final RestClient restClient;
 
   public WarehouseClient(
-      @Value("${services.warehouse.enabled:false}") boolean enabled,
       @Value("${services.warehouse.base-url:http://localhost:8082}") String baseUrl) {
-    this.enabled = enabled;
     this.restClient = RestClient.builder().baseUrl(baseUrl).build();
-  }
-
-  public boolean isEnabled() {
-    return enabled;
   }
 
   public void reserve(Order order) {
@@ -36,7 +29,6 @@ public class WarehouseClient {
   }
 
   public void syncProducts(List<Product> products) {
-    if (!enabled) return;
     products.forEach(this::projectProduct);
   }
 

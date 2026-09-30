@@ -21,7 +21,6 @@ public class WarehouseCatalogController {
 
   @PostMapping("/products/sync")
   public ResponseEntity<Void> syncProducts() {
-    if (!warehouseClient.isEnabled()) return ResponseEntity.noContent().build();
     warehouseClient.syncProducts(productRepository.findAll());
     return ResponseEntity.noContent().build();
   }

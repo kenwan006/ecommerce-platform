@@ -23,6 +23,8 @@ The working demo has been split into three Spring Boot service domains while the
 | Commerce | Payment | REST | create/reuse Stripe PaymentIntent |
 | Payment | Commerce and Warehouse | Kafka `payment-events` | final payment state |
 
+For customer-visible carrier updates, Commerce verifies order ownership and proxies shipment information from Warehouse. Warehouse is the only service that stores shipment status and the append-only `shipment_tracking_events` history.
+
 Payment uses an outbox table and a scheduled publisher. Commerce and Warehouse consume with different consumer groups and each records event IDs in `processed_events` for idempotency.
 
 ## Startup order
@@ -44,8 +46,9 @@ All real credentials are only in ignored local files or environment variables:
 
 ## Current limitations and next work
 
-- Commerce source still contains legacy local Warehouse code. Remove it after the extracted services are fully verified and Commerce is moved/renamed under `services/`.
+- Commerce's legacy local Warehouse implementation has been removed. `V14` drops its interim Warehouse tables from `sunridge_commerce`; Warehouse is the sole owner of operational inventory and fulfillment tables.
 - Browser traffic has no API gateway yet; React directly calls Commerce and the Warehouse operations API.
 - Payment webhook-event persistence/deduplication should be completed in addition to the current payment-status guard.
 - Add service-to-service authentication, staff roles for Warehouse, retries/dead-letter topics, observability, and CI/CD before a production deployment.
+- The FedEx carrier integration is simulated locally. Replace the local-only test webhook endpoint with a registered public HTTPS FedEx webhook and carrier API label creation when integrating a real carrier.
 - The cart remains in browser storage; introduce persistent cart tables later.

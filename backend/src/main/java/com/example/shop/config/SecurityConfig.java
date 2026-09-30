@@ -39,7 +39,6 @@ public class SecurityConfig {
                 "/api/auth/register",
                 "/api/auth/login",
                 "/api/products/**",
-                "/api/stripe/webhook",
                 "/actuator/**",
                 "/oauth2/**",
                 "/login/oauth2/**",
