@@ -102,6 +102,21 @@ curl -X POST http://localhost:8082/api/carriers/fedex/webhook/test \
 
 The production-shaped endpoint is `POST /api/carriers/fedex/webhook`; it validates an HMAC signature when a FedEx webhook security token is configured. The local test endpoint deliberately avoids any FedEx account or public HTTPS callback requirement.
 
+## Commerce order state machine
+
+Commerce owns the customer-facing order lifecycle. It uses typed states and business events rather than arbitrary status strings:
+
+```text
+PENDING_PAYMENT --PAYMENT_SUCCEEDED--> PAID
+PENDING_PAYMENT --PAYMENT_FAILED-----> PAYMENT_FAILED
+PENDING_PAYMENT --FRAUD_REVIEW_REQUIRED--> FRAUD_REVIEW
+PENDING_PAYMENT --FRAUD_DECLINED----> FRAUD_DECLINED
+FRAUD_REVIEW ---REVIEW_APPROVED------> PENDING_PAYMENT
+FRAUD_REVIEW ---REVIEW_DECLINED------> FRAUD_DECLINED
+```
+
+Each transition has a guard and a local action. For example, a payment event must reference the order's expected PaymentIntent; a successful transition writes an `order_status_history` audit row. Cross-service side effects should be emitted through an outbox event rather than called directly from a state-machine action.
+
 ## Database migration
 
 Commerce starts against `sunridge_commerce` and Flyway creates its schema on first startup. To copy existing demo users, catalog, orders, order items, and fraud assessments from the legacy database, run:

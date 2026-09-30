@@ -1,8 +1,11 @@
 package com.example.shop.entity;
 
+import com.example.shop.order.OrderStatus;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -31,7 +34,8 @@ public class Order {
   private User user;
 
   private BigDecimal total;
-  private String status = "PENDING";
+  @Enumerated(EnumType.STRING)
+  private OrderStatus status = OrderStatus.PENDING_PAYMENT;
   @Column(name = "stripe_payment_intent_id")
   private String stripePaymentIntentId;
   @Column(name = "checkout_id", nullable = false)
@@ -50,7 +54,7 @@ public class Order {
   public Long getId() { return id; }
   public User getUser() { return user; }
   public BigDecimal getTotal() { return total; }
-  public String getStatus() { return status; }
+  public OrderStatus getStatus() { return status; }
   public String getStripePaymentIntentId() { return stripePaymentIntentId; }
   public String getCheckoutId() { return checkoutId; }
   public String getPaymentStatus() { return paymentStatus; }
@@ -60,7 +64,7 @@ public class Order {
 
   public void setUser(User user) { this.user = user; }
   public void setTotal(BigDecimal total) { this.total = total; }
-  public void setStatus(String status) { this.status = status; }
+  public void setStatus(OrderStatus status) { this.status = status; }
   public void setStripePaymentIntentId(String stripePaymentIntentId) {
     this.stripePaymentIntentId = stripePaymentIntentId;
   }

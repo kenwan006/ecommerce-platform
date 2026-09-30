@@ -1,6 +1,7 @@
 package com.example.shop.dto;
 
 import java.math.BigDecimal;
+import com.example.shop.order.OrderStatus;
 
 public record CheckoutResponse(
     Long orderId,
@@ -8,4 +9,4 @@ public record CheckoutResponse(
     String clientSecret,
     BigDecimal total,
     String currency,
-    String status) {}
+    OrderStatus status) {}

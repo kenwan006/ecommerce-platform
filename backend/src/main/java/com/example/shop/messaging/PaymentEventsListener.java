@@ -2,6 +2,8 @@ package com.example.shop.messaging;
 
 import com.example.shop.entity.Order;
 import com.example.shop.entity.ProcessedEvent;
+import com.example.shop.order.OrderEvent;
+import com.example.shop.order.OrderStateMachine;
 import com.example.shop.repository.OrderRepository;
 import com.example.shop.repository.ProcessedEventRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -15,14 +17,17 @@ public class PaymentEventsListener {
   private final ObjectMapper objectMapper;
   private final OrderRepository orderRepository;
   private final ProcessedEventRepository processedEventRepository;
+  private final OrderStateMachine orderStateMachine;
 
   public PaymentEventsListener(
       ObjectMapper objectMapper,
       OrderRepository orderRepository,
-      ProcessedEventRepository processedEventRepository) {
+      ProcessedEventRepository processedEventRepository,
+      OrderStateMachine orderStateMachine) {
     this.objectMapper = objectMapper;
     this.orderRepository = orderRepository;
     this.processedEventRepository = processedEventRepository;
+    this.orderStateMachine = orderStateMachine;
   }
 
   @KafkaListener(topics = "payment-events", groupId = "commerce-service")
@@ -36,11 +41,11 @@ public class PaymentEventsListener {
             .findById(event.orderId())
             .orElseThrow(() -> new IllegalArgumentException("Order not found: " + event.orderId()));
     if ("PaymentSucceeded".equals(event.type())) {
-      order.setStatus("PAID");
+      orderStateMachine.transition(order, OrderEvent.PAYMENT_SUCCEEDED, event.paymentId());
       order.setPaymentStatus("PAID");
       order.setStripePaymentIntentId(event.paymentId());
     } else if ("PaymentFailed".equals(event.type())) {
-      order.setStatus("PAYMENT_FAILED");
+      orderStateMachine.transition(order, OrderEvent.PAYMENT_FAILED, event.paymentId());
       order.setPaymentStatus("FAILED");
     } else {
       throw new IllegalArgumentException("Unsupported payment event type: " + event.type());

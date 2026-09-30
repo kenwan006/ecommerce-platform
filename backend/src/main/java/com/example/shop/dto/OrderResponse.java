@@ -1,11 +1,12 @@
 package com.example.shop.dto;
 import com.example.shop.entity.Order;
+import com.example.shop.order.OrderStatus;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 
 public record OrderResponse(
-    Long id, String status, String paymentStatus, BigDecimal total, Instant createdAt, List<Item> items) {
+    Long id, OrderStatus status, String paymentStatus, BigDecimal total, Instant createdAt, List<Item> items) {
   public record Item(Long productId, String productName, int quantity, BigDecimal unitPrice) {}
 
   public static OrderResponse from(Order order) {

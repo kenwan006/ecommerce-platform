@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 
 import com.example.shop.dto.CheckoutRequest;
 import com.example.shop.dto.CheckoutResponse;
+import com.example.shop.order.OrderStatus;
 import com.example.shop.service.CheckoutService;
 import java.math.BigDecimal;
 import java.util.List;
@@ -22,7 +23,12 @@ class CheckoutControllerTest {
     CheckoutRequest request = new CheckoutRequest(
         7L, "checkout-123", List.of(new CheckoutRequest.Item(9L, 2)));
     CheckoutResponse expected = new CheckoutResponse(
-        101L, "pi_original", "secret_original", new BigDecimal("25.00"), "usd", "PENDING");
+        101L,
+        "pi_original",
+        "secret_original",
+        new BigDecimal("25.00"),
+        "usd",
+        OrderStatus.PENDING_PAYMENT);
     when(service.createCheckout(request)).thenReturn(expected);
     when(authentication.getName()).thenReturn("7");
 

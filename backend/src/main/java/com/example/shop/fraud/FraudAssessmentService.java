@@ -2,6 +2,8 @@ package com.example.shop.fraud;
 
 import com.example.shop.entity.FraudAssessment;
 import com.example.shop.entity.Order;
+import com.example.shop.order.OrderEvent;
+import com.example.shop.order.OrderStateMachine;
 import com.example.shop.client.WarehouseClient;
 import com.example.shop.fraud.model.FraudDecision;
 import com.example.shop.fraud.model.FraudDecisionResult;
@@ -22,6 +24,7 @@ public class FraudAssessmentService {
   private final MlClient mlClient;
   private final DecisionEngine decisionEngine;
   private final WarehouseClient warehouseClient;
+  private final OrderStateMachine orderStateMachine;
 
   public FraudAssessmentService(
       OrderRepository orderRepository,
@@ -30,7 +33,8 @@ public class FraudAssessmentService {
       RuleEngine ruleEngine,
       MlClient mlClient,
       DecisionEngine decisionEngine,
-      WarehouseClient warehouseClient) {
+      WarehouseClient warehouseClient,
+      OrderStateMachine orderStateMachine) {
     this.orderRepository = orderRepository;
     this.assessmentRepository = assessmentRepository;
     this.featureService = featureService;
@@ -38,6 +42,7 @@ public class FraudAssessmentService {
     this.mlClient = mlClient;
     this.decisionEngine = decisionEngine;
     this.warehouseClient = warehouseClient;
+    this.orderStateMachine = orderStateMachine;
   }
 
   @Transactional
@@ -65,9 +70,10 @@ public class FraudAssessmentService {
     if (decision.decision() == FraudDecision.DECLINE) {
       warehouseClient.release(orderId);
       order.setPaymentStatus("FRAUD_DECLINED");
-      order.setStatus("FRAUD_DECLINED");
+      orderStateMachine.transition(order, OrderEvent.FRAUD_DECLINED, "fraud-assessment-" + orderId);
     } else if (decision.decision() == FraudDecision.REVIEW) {
-      order.setStatus("FRAUD_REVIEW");
+      orderStateMachine.transition(
+          order, OrderEvent.FRAUD_REVIEW_REQUIRED, "fraud-assessment-" + orderId);
     }
     return decision;
   }
