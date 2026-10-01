@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from app.clients.spring_client import SpringClient
-from app.rag import LocalRag
+from app.rag import PostgresRag
 
 
 @dataclass(frozen=True)
@@ -10,4 +10,4 @@ class AgentRequestContext:
 
     authorization: str
     spring_client: SpringClient
-    rag: LocalRag
+    rag: PostgresRag

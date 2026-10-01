@@ -1,22 +1,16 @@
-"""A small, file-backed retrieval layer for internal documentation.
-
-The index is intentionally portable JSON so this service can start with a few
-policy and guide files without requiring a separate vector database.
-"""
+"""PostgreSQL/pgvector retrieval for internal documentation."""
 
 from __future__ import annotations
 
-import json
-import math
+import hashlib
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 from openai import AsyncOpenAI
+from psycopg import AsyncConnection
 
 
 SUPPORTED_SUFFIXES = {".md", ".txt"}
-INDEX_VERSION = 1
 
 
 @dataclass(frozen=True)
@@ -50,66 +44,49 @@ def chunk_text(text: str, *, chunk_size: int = 1400, overlap: int = 200) -> list
     return chunks
 
 
-def cosine_similarity(left: list[float], right: list[float]) -> float:
-    if len(left) != len(right):
-        raise ValueError("Embedding dimensions do not match. Rebuild the RAG index.")
-    denominator = math.sqrt(sum(value * value for value in left)) * math.sqrt(
-        sum(value * value for value in right)
-    )
-    return 0.0 if denominator == 0 else sum(a * b for a, b in zip(left, right)) / denominator
-
-
-class LocalRag:
+class PostgresRag:
     def __init__(
         self,
         *,
-        index_path: Path,
+        database_url: str,
         embedding_model: str,
         top_k: int,
         min_score: float,
         client: AsyncOpenAI | None = None,
     ):
-        self.index_path = index_path
+        self.database_url = database_url
         self.embedding_model = embedding_model
         if top_k < 1:
             raise ValueError("RAG_TOP_K must be at least 1.")
         self.top_k = top_k
         self.min_score = min_score
         self.client = client or AsyncOpenAI()
-        self._index: dict[str, Any] | None = None
-
-    def _load_index(self) -> dict[str, Any]:
-        if self._index is not None:
-            return self._index
-        if not self.index_path.exists():
-            self._index = {"chunks": []}
-            return self._index
-        with self.index_path.open(encoding="utf-8") as file:
-            self._index = json.load(file)
-        if self._index.get("version") != INDEX_VERSION:
-            raise RuntimeError("Unsupported RAG index format. Rebuild the index.")
-        if self._index.get("embedding_model") != self.embedding_model:
-            raise RuntimeError("RAG embedding model changed. Rebuild the index.")
-        return self._index
-
     async def search(self, query: str) -> list[SearchResult]:
-        index = self._load_index()
-        chunks = index.get("chunks", [])
-        if not chunks:
-            return []
         response = await self.client.embeddings.create(model=self.embedding_model, input=query)
         query_embedding = response.data[0].embedding
-        results = [
-            SearchResult(
-                source=chunk["source"],
-                chunk=chunk["chunk"],
-                score=cosine_similarity(query_embedding, chunk["embedding"]),
-                text=chunk["text"],
-            )
-            for chunk in chunks
+        vector = to_vector_literal(query_embedding)
+        async with await AsyncConnection.connect(self.database_url) as connection:
+            async with connection.cursor() as cursor:
+                await cursor.execute(
+                    """
+                    SELECT document.source_filename, chunk.chunk_number,
+                           1 - (chunk.embedding <=> %s::vector) AS score,
+                           chunk.chunk_text
+                    FROM knowledge_document_chunks AS chunk
+                    JOIN knowledge_documents AS document ON document.id = chunk.document_id
+                    WHERE document.status = 'active'
+                      AND document.effective_at <= now()
+                    ORDER BY chunk.embedding <=> %s::vector
+                    LIMIT %s
+                    """,
+                    (vector, vector, self.top_k),
+                )
+                rows = await cursor.fetchall()
+        return [
+            SearchResult(source=source, chunk=chunk, score=float(score), text=text)
+            for source, chunk, score, text in rows
+            if score >= self.min_score
         ]
-        ranked = sorted(results, key=lambda item: item.score, reverse=True)[: self.top_k]
-        return [result for result in ranked if result.score >= self.min_score]
 
 
 async def embed_texts(client: AsyncOpenAI, model: str, texts: list[str]) -> list[list[float]]:
@@ -122,7 +99,11 @@ async def embed_texts(client: AsyncOpenAI, model: str, texts: list[str]) -> list
 
 
 async def build_index(
-    *, document_dir: Path, index_path: Path, embedding_model: str, client: AsyncOpenAI | None = None
+    *,
+    document_dir: Path,
+    database_url: str,
+    embedding_model: str,
+    client: AsyncOpenAI | None = None,
 ) -> int:
     if not document_dir.exists():
         raise FileNotFoundError(f"RAG document directory does not exist: {document_dir}")
@@ -131,22 +112,69 @@ async def build_index(
         for path in document_dir.rglob("*")
         if path.is_file() and path.suffix.lower() in SUPPORTED_SUFFIXES
     )
-    records = [
-        {"source": path.relative_to(document_dir).as_posix(), "chunk": number, "text": text}
+    documents = {
+        path.relative_to(document_dir).as_posix(): chunk_text(path.read_text(encoding="utf-8"))
         for path in files
-        for number, text in enumerate(chunk_text(path.read_text(encoding="utf-8")))
-    ]
-    if not records:
+    }
+    if not any(documents.values()):
         raise ValueError(f"No .md or .txt documents found under {document_dir}")
 
     openai_client = client or AsyncOpenAI()
-    embeddings = await embed_texts(openai_client, embedding_model, [record["text"] for record in records])
-    for record, embedding in zip(records, embeddings):
-        record["embedding"] = embedding
+    indexed_chunks = 0
+    async with await AsyncConnection.connect(database_url) as connection:
+        for source, chunks in documents.items():
+            if not chunks:
+                continue
+            embeddings = await embed_texts(openai_client, embedding_model, chunks)
+            document_key = Path(source).with_suffix("").as_posix()
+            async with connection.transaction():
+                async with connection.cursor() as cursor:
+                    await cursor.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (document_key,))
+                    await cursor.execute(
+                        "SELECT COALESCE(MAX(version), 0) + 1 FROM knowledge_documents WHERE document_key = %s",
+                        (document_key,),
+                    )
+                    version = (await cursor.fetchone())[0]
+                    await cursor.execute(
+                        """
+                        INSERT INTO knowledge_documents
+                            (document_key, title, source_filename, version, status)
+                        VALUES (%s, %s, %s, %s, 'indexing')
+                        RETURNING id
+                        """,
+                        (document_key, Path(source).stem, source, version),
+                    )
+                    document_id = (await cursor.fetchone())[0]
+                    await cursor.executemany(
+                        """
+                        INSERT INTO knowledge_document_chunks
+                            (document_id, chunk_number, content_hash, chunk_text, embedding)
+                        VALUES (%s, %s, %s, %s, %s::vector)
+                        """,
+                        [
+                            (document_id, number, content_hash(text), text, to_vector_literal(embedding))
+                            for number, (text, embedding) in enumerate(zip(chunks, embeddings))
+                        ],
+                    )
+                    await cursor.execute(
+                        """
+                        UPDATE knowledge_documents
+                        SET status = 'superseded'
+                        WHERE document_key = %s AND status = 'active'
+                        """,
+                        (document_key,),
+                    )
+                    await cursor.execute(
+                        "UPDATE knowledge_documents SET status = 'active' WHERE id = %s",
+                        (document_id,),
+                    )
+            indexed_chunks += len(chunks)
+    return indexed_chunks
 
-    payload = {"version": INDEX_VERSION, "embedding_model": embedding_model, "chunks": records}
-    index_path.parent.mkdir(parents=True, exist_ok=True)
-    temporary_path = index_path.with_suffix(index_path.suffix + ".tmp")
-    temporary_path.write_text(json.dumps(payload, separators=(",", ":")), encoding="utf-8")
-    temporary_path.replace(index_path)
-    return len(records)
+
+def content_hash(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def to_vector_literal(values: list[float]) -> str:
+    return "[" + ",".join(str(value) for value in values) + "]"

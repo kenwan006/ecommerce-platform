@@ -1,4 +1,4 @@
-"""Build the local RAG index from documents in data/rag/documents/."""
+"""Index internal documents into PostgreSQL with pgvector."""
 
 import argparse
 import asyncio
@@ -9,13 +9,19 @@ from app.rag import build_index
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Build the internal-document RAG index.")
+    parser = argparse.ArgumentParser(description="Index internal documents into PostgreSQL.")
     parser.add_argument("--documents", type=Path, default=settings.rag_document_dir)
-    parser.add_argument("--output", type=Path, default=settings.rag_index_path)
+    parser.add_argument("--database-url", default=settings.rag_database_url)
     parser.add_argument("--model", default=settings.rag_embedding_model)
     args = parser.parse_args()
-    chunks = asyncio.run(build_index(document_dir=args.documents, index_path=args.output, embedding_model=args.model))
-    print(f"Indexed {chunks} chunks from {args.documents} into {args.output}.")
+    chunks = asyncio.run(
+        build_index(
+            document_dir=args.documents,
+            database_url=args.database_url,
+            embedding_model=args.model,
+        )
+    )
+    print(f"Indexed {chunks} chunks from {args.documents} into PostgreSQL.")
 
 
 if __name__ == "__main__":

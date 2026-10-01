@@ -8,7 +8,7 @@ from app.agents.order_agent import OrderAgent
 from app.api.ai_routes import router as ai_router
 from app.clients.spring_client import SpringClient
 from app.config import settings
-from app.rag import LocalRag
+from app.rag import PostgresRag
 
 
 @asynccontextmanager
@@ -45,8 +45,8 @@ async def lifespan(app: FastAPI):
         app.state.spring_client = SpringClient(settings.spring_api_url)
         app.state.order_agent = OrderAgent(
             [openai_docs_mcp_server, github_mcp_server],
-            LocalRag(
-                index_path=settings.rag_index_path,
+            PostgresRag(
+                database_url=settings.rag_database_url,
                 embedding_model=settings.rag_embedding_model,
                 top_k=settings.rag_top_k,
                 min_score=settings.rag_min_score,

@@ -15,10 +15,10 @@ class Settings:
     github_token: str
     github_mcp_url: str
     rag_document_dir: Path
-    rag_index_path: Path
     rag_embedding_model: str
     rag_top_k: int
     rag_min_score: float
+    rag_database_url: str
 
 
 settings = Settings(
@@ -28,8 +28,8 @@ settings = Settings(
     github_token=os.getenv("GITHUB_TOKEN", ""),
     github_mcp_url=os.getenv("GITHUB_MCP_URL", "https://api.githubcopilot.com/mcp/"),
     rag_document_dir=Path(os.getenv("RAG_DOCUMENT_DIR", "data/rag/documents")),
-    rag_index_path=Path(os.getenv("RAG_INDEX_PATH", "data/rag/index.json")),
     rag_embedding_model=os.getenv("RAG_EMBEDDING_MODEL", "text-embedding-3-small"),
     rag_top_k=int(os.getenv("RAG_TOP_K", "4")),
     rag_min_score=float(os.getenv("RAG_MIN_SCORE", "0.25")),
+    rag_database_url=os.getenv("RAG_DATABASE_URL", "postgresql://chaowan@127.0.0.1:5432/postgres"),
 )

@@ -5,14 +5,14 @@ from agents.mcp import MCPServerStreamableHttp
 
 from app.agents.context import AgentRequestContext
 from app.clients.spring_client import SpringClient
-from app.rag import LocalRag
+from app.rag import PostgresRag
 from app.tools.order_tools import get_order_status, get_pending_orders, get_recent_orders, search_internal_docs
 
 
 class OrderAgent:
     REQUEST_TIMEOUT_SECONDS = 30
 
-    def __init__(self, mcp_servers: list[MCPServerStreamableHttp], rag: LocalRag):
+    def __init__(self, mcp_servers: list[MCPServerStreamableHttp], rag: PostgresRag):
         self.rag = rag
         self.agent = Agent(
             name="E-commerce Assistant",
