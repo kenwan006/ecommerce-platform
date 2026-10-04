@@ -8,4 +8,6 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
   Optional<Payment> findByCheckoutId(String checkoutId);
 
   Optional<Payment> findByProviderPaymentId(String providerPaymentId);
+
+  Optional<Payment> findByCommerceOrderId(Long commerceOrderId);
 }

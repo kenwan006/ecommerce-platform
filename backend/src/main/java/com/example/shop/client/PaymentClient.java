@@ -20,6 +20,12 @@ public class PaymentClient {
         .body(new CreatePayment(orderId, checkoutId, amount, currency)).retrieve().body(Payment.class);
   }
 
+  public Refund refund(Long orderId) {
+    return restClient.post().uri("/internal/payments/{orderId}/refund", orderId)
+        .retrieve().body(Refund.class);
+  }
+
   private record CreatePayment(Long orderId, String checkoutId, BigDecimal amount, String currency) {}
   public record Payment(Long paymentId, String providerPaymentId, String clientSecret, BigDecimal amount, String currency, String status) {}
+  public record Refund(String refundId, BigDecimal amount, String currency, String status) {}
 }

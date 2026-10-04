@@ -8,7 +8,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.example.shop.dto.CheckoutRequest;
+import com.example.shop.client.PaymentClient;
+import com.example.shop.dto.RefundResponse;
 import com.example.shop.entity.Order;
+import com.example.shop.order.OrderEvent;
+import com.example.shop.order.OrderStateMachine;
+import com.example.shop.order.OrderStatus;
 import com.example.shop.entity.Product;
 import com.example.shop.entity.User;
 import com.example.shop.repository.OrderRepository;
@@ -24,7 +29,10 @@ class OrderServiceTest {
   private final UserRepository users = mock(UserRepository.class);
   private final ProductRepository products = mock(ProductRepository.class);
   private final OrderRepository orders = mock(OrderRepository.class);
-  private final OrderService service = new OrderService(users, products, orders);
+  private final PaymentClient payments = mock(PaymentClient.class);
+  private final OrderStateMachine orderStateMachine = mock(OrderStateMachine.class);
+  private final OrderService service = new OrderService(
+      users, products, orders, payments, orderStateMachine);
 
   @Test
   void reusesExistingOrderForTheSameCheckoutIdWithoutReservingStockAgain() {
@@ -69,6 +77,24 @@ class OrderServiceTest {
     verify(users, never()).findById(any());
     verify(products, never()).findById(any());
     verify(orders, never()).save(any());
+  }
+
+  @Test
+  void refundsOnlyTheAuthenticatedCustomersPaidOrder() {
+    Order order = new Order();
+    setField(order, "id", 12L);
+    order.setStatus(OrderStatus.PAID);
+    order.setPaymentStatus("PAID");
+    when(orders.findByIdAndUserId(12L, 7L)).thenReturn(Optional.of(order));
+    when(payments.refund(12L)).thenReturn(
+        new PaymentClient.Refund("re_123", new BigDecimal("25.00"), "usd", "SUCCEEDED"));
+
+    RefundResponse refund = service.refund(12L, 7L);
+
+    assertThat(refund.amount()).isEqualByComparingTo("25.00");
+    assertThat(refund.status()).isEqualTo("SUCCEEDED");
+    assertThat(order.getPaymentStatus()).isEqualTo("REFUNDED");
+    verify(orderStateMachine).transition(order, OrderEvent.REFUND_SUCCEEDED, "re_123");
   }
 
   private static void setField(Object target, String fieldName, Object value) {

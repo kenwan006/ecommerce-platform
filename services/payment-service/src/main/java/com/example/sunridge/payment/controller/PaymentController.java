@@ -2,9 +2,11 @@ package com.example.sunridge.payment.controller;
 
 import com.example.sunridge.payment.model.CreatePaymentRequest;
 import com.example.sunridge.payment.model.CreatePaymentResponse;
+import com.example.sunridge.payment.model.RefundResponse;
 import com.example.sunridge.payment.service.PaymentService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -21,5 +23,10 @@ public class PaymentController {
   @PostMapping
   public CreatePaymentResponse create(@Valid @RequestBody CreatePaymentRequest request) {
     return paymentService.create(request);
+  }
+
+  @PostMapping("/{commerceOrderId}/refund")
+  public RefundResponse refund(@PathVariable Long commerceOrderId) {
+    return paymentService.refund(commerceOrderId);
   }
 }

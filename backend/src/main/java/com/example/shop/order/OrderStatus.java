@@ -7,5 +7,6 @@ public enum OrderStatus {
   PAID,
   PAYMENT_FAILED,
   FRAUD_DECLINED,
-  CANCELLED
+  CANCELLED,
+  REFUNDED
 }

@@ -15,6 +15,9 @@ public class Product {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
+  @Column(nullable = false, unique = true)
+  private String sku;
+
   private String name;
 
   @Column(columnDefinition = "TEXT")
@@ -28,6 +31,10 @@ public class Product {
 
   public Long getId() {
     return id;
+  }
+
+  public String getSku() {
+    return sku;
   }
 
   public String getName() {

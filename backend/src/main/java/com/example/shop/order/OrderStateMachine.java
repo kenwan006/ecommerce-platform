@@ -74,6 +74,12 @@ public class OrderStateMachine {
                 OrderEvent.CANCELLED,
                 OrderStatus.CANCELLED,
                 (order, reference) -> true,
+                recordHistory),
+            new Transition(
+                OrderStatus.PAID,
+                OrderEvent.REFUND_SUCCEEDED,
+                OrderStatus.REFUNDED,
+                (order, reference) -> true,
                 recordHistory));
   }
 

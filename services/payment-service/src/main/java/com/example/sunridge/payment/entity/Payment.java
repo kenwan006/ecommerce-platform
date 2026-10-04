@@ -21,6 +21,7 @@ public class Payment {
   private BigDecimal amount;
   private String currency;
   private String status;
+  private String providerRefundId;
 
   public Long getId() {
     return id;
@@ -49,6 +50,7 @@ public class Payment {
   public String getStatus() {
     return status;
   }
+  public String getProviderRefundId() { return providerRefundId; }
 
   public void setCommerceOrderId(Long commerceOrderId) {
     this.commerceOrderId = commerceOrderId;
@@ -77,4 +79,5 @@ public class Payment {
   public void setStatus(String status) {
     this.status = status;
   }
+  public void setProviderRefundId(String providerRefundId) { this.providerRefundId = providerRefundId; }
 }

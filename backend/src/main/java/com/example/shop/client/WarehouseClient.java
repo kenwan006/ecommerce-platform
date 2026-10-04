@@ -49,7 +49,7 @@ public class WarehouseClient {
         .contentType(MediaType.APPLICATION_JSON)
         .body(
             new ProductProjection(
-                product.getId(), "SKU-" + product.getId(), product.getName(), product.getStock()))
+                product.getId(), product.getSku(), product.getName(), product.getStock()))
         .retrieve()
         .toBodilessEntity();
   }

@@ -11,6 +11,26 @@ export default function ChatBox() {
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState([welcomeMessage]);
   const [isSending, setIsSending] = useState(false);
+  const [isRefunding, setIsRefunding] = useState(false);
+
+  const confirmRefund = async orderId => {
+    if (isRefunding) return;
+    setIsRefunding(true);
+    try {
+      const refund = await api.refundOrder(orderId);
+      setMessages(current => [...current, {
+        role: 'assistant',
+        text: `Your refund of ${refund.amount} ${refund.currency} for order #${refund.orderId} has been processed.`,
+      }]);
+    } catch (error) {
+      setMessages(current => [...current, {
+        role: 'assistant',
+        text: `The refund could not be processed: ${error.message}`,
+      }]);
+    } finally {
+      setIsRefunding(false);
+    }
+  };
 
   const sendMessage = async event => {
     event.preventDefault();
@@ -27,6 +47,7 @@ export default function ChatBox() {
       setMessages(current => [...current, {
         role: 'assistant',
         text: response.answer || response.reply || response.message || 'I could not generate a response.',
+        refundAction: response.refund_action,
       }]);
     } catch (error) {
       const message = error.name === 'AbortError'
@@ -55,7 +76,19 @@ export default function ChatBox() {
           </header>
           <div className="chatbox-messages" aria-live="polite">
             {messages.map((entry, index) => (
-              <p className={`chatbox-message ${entry.role}`} key={`${entry.role}-${index}`}>{entry.text}</p>
+              <div className={`chatbox-message ${entry.role}`} key={`${entry.role}-${index}`}>
+                <p>{entry.text}</p>
+                {entry.refundAction && (
+                  <button
+                    className="chatbox-refund-button"
+                    type="button"
+                    disabled={isRefunding}
+                    onClick={() => confirmRefund(entry.refundAction.order_id)}
+                  >
+                    {isRefunding ? 'Processing refund…' : `Confirm refund for order #${entry.refundAction.order_id}`}
+                  </button>
+                )}
+              </div>
             ))}
             {isSending && <p className="chatbox-message assistant">Thinking…</p>}
           </div>

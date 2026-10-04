@@ -3,11 +3,14 @@ package com.example.sunridge.payment.service;
 import com.example.sunridge.payment.entity.Payment;
 import com.example.sunridge.payment.model.CreatePaymentRequest;
 import com.example.sunridge.payment.model.CreatePaymentResponse;
+import com.example.sunridge.payment.model.RefundResponse;
 import com.example.sunridge.payment.repository.PaymentRepository;
 import com.stripe.Stripe;
 import com.stripe.model.PaymentIntent;
+import com.stripe.model.Refund;
 import com.stripe.net.RequestOptions;
 import com.stripe.param.PaymentIntentCreateParams;
+import com.stripe.param.RefundCreateParams;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -71,6 +74,35 @@ public class PaymentService {
           payment.getStatus());
     } catch (Exception exception) {
       throw new IllegalStateException("Could not create Stripe payment", exception);
+    }
+  }
+
+  @Transactional
+  public RefundResponse refund(Long commerceOrderId) {
+    Payment payment = payments.findByCommerceOrderId(commerceOrderId)
+        .orElseThrow(() -> new IllegalArgumentException("Payment not found"));
+    if ("REFUNDED".equals(payment.getStatus())) {
+      return new RefundResponse(payment.getProviderRefundId(), payment.getAmount(), payment.getCurrency(), "SUCCEEDED");
+    }
+    if (!"PAID".equals(payment.getStatus())) {
+      throw new IllegalStateException("Only paid payments can be refunded.");
+    }
+    try {
+      if (secretKey.isBlank()) throw new IllegalStateException("STRIPE_SECRET_KEY is required");
+      Stripe.apiKey = secretKey;
+      Refund refund = Refund.create(
+          RefundCreateParams.builder().setPaymentIntent(payment.getProviderPaymentId()).build(),
+          RequestOptions.builder().setIdempotencyKey("refund-order-" + commerceOrderId).build());
+      if (!"succeeded".equals(refund.getStatus())) {
+        throw new IllegalStateException("Stripe refund is " + refund.getStatus());
+      }
+      payment.setProviderRefundId(refund.getId());
+      payment.setStatus("REFUNDED");
+      return new RefundResponse(refund.getId(), payment.getAmount(), payment.getCurrency(), "SUCCEEDED");
+    } catch (IllegalStateException exception) {
+      throw exception;
+    } catch (Exception exception) {
+      throw new IllegalStateException("Could not refund Stripe payment", exception);
     }
   }
 }

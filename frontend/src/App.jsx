@@ -15,7 +15,7 @@ const readStorage = (key, fallback) => JSON.parse(localStorage.getItem(key) || f
 
 export default function App() {
   const [products, setProducts] = useState([]);
-  const [cart, setCart] = useState(() => readStorage('cart', '[]'));
+  const [cart, setCart] = useState([]);
   const [user, setUser] = useState(() => readStorage('user', 'null'));
   const [view, setView] = useState('shop');
   const [notice, setNotice] = useState('');
@@ -39,7 +39,15 @@ export default function App() {
       .catch(() => setNotice('Google sign-in could not be completed.'))
       .finally(() => window.history.replaceState({}, '', window.location.pathname));
   }, []);
-  useEffect(() => localStorage.setItem('cart', JSON.stringify(cart)), [cart]);
+  useEffect(() => {
+    if (!user) {
+      setCart([]);
+      return;
+    }
+    api.getCart()
+      .then(response => setCart(response.items))
+      .catch(() => setNotice('Could not load your saved bag.'));
+  }, [user]);
   useEffect(() => {
     if (user) localStorage.setItem('user', JSON.stringify(user));
     else localStorage.removeItem('user');
@@ -49,15 +57,19 @@ export default function App() {
     () => cart.reduce((sum, item) => sum + Number(item.price) * item.quantity, 0),
     [cart],
   );
-  const addToCart = product => {
-    setCart(items => {
-      const exists = items.some(item => item.id === product.id);
-      if (!exists) return [...items, { ...product, quantity: 1 }];
-      return items.map(item =>
-        item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item,
-      );
-    });
-    setNotice(`${product.name} added to cart.`);
+  const addToCart = async product => {
+    if (!user) {
+      setNotice('Sign in to save items to your bag.');
+      setView('account');
+      return;
+    }
+    try {
+      const savedCart = await api.addCartItem(product.id);
+      setCart(savedCart.items);
+      setNotice(`${product.name} added to cart.`);
+    } catch (error) {
+      setNotice(error.message);
+    }
   };
   const startCheckout = async () => {
     if (!user) {
@@ -80,6 +92,11 @@ export default function App() {
   };
 
   const completeCheckout = async () => {
+    try {
+      await api.clearCart();
+    } catch (error) {
+      setNotice(`Payment received, but your bag could not be cleared: ${error.message}`);
+    }
     setCart([]);
     setPaymentIntent(null);
     setCheckoutId(null);
@@ -115,7 +132,24 @@ export default function App() {
           cart={cart}
           total={total}
           user={user}
-          onRemove={id => setCart(items => items.filter(item => item.id !== id))}
+          onChangeQuantity={async (item, quantity) => {
+            try {
+              const savedCart = quantity === 0
+                ? await api.removeCartItem(item.id)
+                : await api.updateCartItem(item.id, quantity);
+              setCart(savedCart.items);
+            } catch (error) {
+              setNotice(error.message);
+            }
+          }}
+          onRemove={async id => {
+            try {
+              const savedCart = await api.removeCartItem(id);
+              setCart(savedCart.items);
+            } catch (error) {
+              setNotice(error.message);
+            }
+          }}
           onCheckout={startCheckout}
         />
       )}

@@ -43,4 +43,4 @@ async def ask(
             status_code=502,
             detail="The assistant could not complete the request. Check the agent-service console.",
         ) from exception
-    return AskResponse(answer=answer)
+    return AskResponse(answer=answer.answer, refund_action=answer.refund_action)

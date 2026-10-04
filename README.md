@@ -88,6 +88,20 @@ Set the CLI-provided webhook secret and Stripe test secret key only in `services
 
 This mixes synchronous REST for immediate checkout decisions with Kafka for state changes that multiple services react to. Consumers store processed event IDs, so at-least-once delivery is safe.
 
+## Persistent cart
+
+Commerce owns a persisted cart for each signed-in customer: `carts` and `cart_items` are stored in `sunridge_commerce`. The React bag now calls these authenticated endpoints:
+
+```text
+GET    /api/cart
+POST   /api/cart/items
+PATCH  /api/cart/items/{productId}
+DELETE /api/cart/items/{productId}
+DELETE /api/cart
+```
+
+Adding an item to a cart does **not** reserve stock. Warehouse creates an expiring inventory reservation only when checkout begins; payment failure and the reservation-expiry job release it safely.
+
 ## Shipment tracking demo
 
 After a warehouse worker marks a fulfillment shipped, the customer can open **Account → Track shipment**. React calls Commerce, which verifies that the selected order belongs to the signed-in customer before calling Warehouse's internal shipment endpoint. The browser never queries Warehouse by an arbitrary tracking number.
@@ -133,7 +147,7 @@ Use Stripe test card `4242 4242 4242 4242`, any future expiry date, and any thre
 
 ## Further reading
 
-- [Microservice migration details](docs/MICROSERVICE_MIGRATION.md)
+- [Microservice migration details](MICROSERVICE_MIGRATION.md)
 - [Payment process flow](PAYMENT_PROCESS_FLOW.md)
 - [Google OAuth and application JWT flow](GOOGLE_OAUTH_JWT_FLOW.md)
 - [Project handoff](PROJECT_HANDOFF.md)

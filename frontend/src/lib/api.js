@@ -22,8 +22,22 @@ export const api = {
   login: (credentials) => request('/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credentials) }),
   register: (details) => request('/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(details) }),
   currentUser: () => request('/auth/me'),
+  getCart: () => request('/cart'),
+  addCartItem: (productId, quantity = 1) => request('/cart/items', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ productId, quantity }),
+  }),
+  updateCartItem: (productId, quantity) => request(`/cart/items/${productId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ quantity }),
+  }),
+  removeCartItem: productId => request(`/cart/items/${productId}`, { method: 'DELETE' }),
+  clearCart: () => request('/cart', { method: 'DELETE' }),
   getOrders: () => request('/orders'),
   getOrderShipment: orderId => request(`/orders/${orderId}/shipment`),
+  refundOrder: orderId => request(`/orders/${orderId}/refund`, { method: 'POST' }),
   googleLoginUrl: 'http://localhost:8080/oauth2/authorization/google',
   askAi: (message, signal) => request('/ai/ask', {
     method: 'POST',

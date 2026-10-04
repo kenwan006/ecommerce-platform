@@ -2,6 +2,8 @@ package com.example.shop.service;
 
 import com.example.shop.dto.CheckoutRequest;
 import com.example.shop.dto.OrderResponse;
+import com.example.shop.dto.RefundResponse;
+import com.example.shop.client.PaymentClient;
 import com.example.shop.entity.Order;
 import com.example.shop.entity.OrderItem;
 import com.example.shop.entity.Product;
@@ -10,6 +12,9 @@ import com.example.shop.exception.ResourceNotFoundException;
 import com.example.shop.repository.OrderRepository;
 import com.example.shop.repository.ProductRepository;
 import com.example.shop.repository.UserRepository;
+import com.example.shop.order.OrderEvent;
+import com.example.shop.order.OrderStateMachine;
+import com.example.shop.order.OrderStatus;
 import java.math.BigDecimal;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -19,14 +24,20 @@ public class OrderService {
   private final UserRepository userRepository;
   private final ProductRepository productRepository;
   private final OrderRepository orderRepository;
+  private final PaymentClient paymentClient;
+  private final OrderStateMachine orderStateMachine;
 
   public OrderService(
       UserRepository userRepository,
       ProductRepository productRepository,
-      OrderRepository orderRepository) {
+      OrderRepository orderRepository,
+      PaymentClient paymentClient,
+      OrderStateMachine orderStateMachine) {
     this.userRepository = userRepository;
     this.productRepository = productRepository;
     this.orderRepository = orderRepository;
+    this.paymentClient = paymentClient;
+    this.orderStateMachine = orderStateMachine;
   }
 
   @Transactional(readOnly = true)
@@ -91,5 +102,26 @@ public class OrderService {
   public Order getCheckout(Long userId, String checkoutId) {
     return orderRepository.findByUserIdAndCheckoutId(userId, checkoutId)
         .orElseThrow(() -> new IllegalStateException("Checkout could not be recovered after a concurrent request"));
+  }
+
+  /** Refunds a paid order for its full amount after rechecking customer ownership. */
+  @Transactional
+  public RefundResponse refund(Long orderId, Long userId) {
+    Order order = orderRepository.findByIdAndUserId(orderId, userId)
+        .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+    if (order.getStatus() == OrderStatus.REFUNDED) {
+      throw new IllegalStateException("This order has already been refunded.");
+    }
+    if (order.getStatus() != OrderStatus.PAID || !"PAID".equals(order.getPaymentStatus())) {
+      throw new IllegalStateException("Only paid orders are eligible for a full refund.");
+    }
+
+    PaymentClient.Refund refund = paymentClient.refund(orderId);
+    if (!"SUCCEEDED".equals(refund.status())) {
+      throw new IllegalStateException("The payment provider did not complete the refund.");
+    }
+    order.setPaymentStatus("REFUNDED");
+    orderStateMachine.transition(order, OrderEvent.REFUND_SUCCEEDED, refund.refundId());
+    return new RefundResponse(orderId, refund.amount(), refund.currency(), refund.refundId(), refund.status());
   }
 }
