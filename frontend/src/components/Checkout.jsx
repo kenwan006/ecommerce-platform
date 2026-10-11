@@ -19,22 +19,38 @@ function PaymentForm({ total, onPaymentComplete }) {
 
     setIsPaying(true);
     setError('');
-    const result = await stripe.confirmPayment({ elements, redirect: 'if_required' });
+    try {
+      const { error: submitError } = await elements.submit();
+      if (submitError) {
+        setError(submitError.message || 'Please complete your payment details.');
+        setIsPaying(false);
+        return;
+      }
 
-    if (result.error) {
-      setError(result.error.message || 'Your payment could not be completed.');
+      const result = await stripe.confirmPayment({
+        elements,
+        confirmParams: { return_url: window.location.origin },
+        redirect: 'if_required',
+      });
+
+      if (result.error) {
+        setError(result.error.message || 'Your payment could not be completed.');
+        setIsPaying(false);
+        return;
+      }
+
+      if (result.paymentIntent?.status !== 'succeeded') {
+        setError('Your payment is still being processed. Please try again shortly.');
+        setIsPaying(false);
+        return;
+      }
+
+      await onPaymentComplete(result.paymentIntent.id);
       setIsPaying(false);
-      return;
-    }
-
-    if (result.paymentIntent?.status !== 'succeeded') {
-      setError('Your payment is still being processed. Please try again shortly.');
+    } catch (paymentError) {
+      setError(paymentError.message || 'Your payment could not be completed.');
       setIsPaying(false);
-      return;
     }
-
-    await onPaymentComplete(result.paymentIntent.id);
-    setIsPaying(false);
   };
 
   return (

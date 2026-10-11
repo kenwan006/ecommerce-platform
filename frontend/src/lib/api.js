@@ -37,7 +37,12 @@ export const api = {
   clearCart: () => request('/cart', { method: 'DELETE' }),
   getOrders: () => request('/orders'),
   getOrderShipment: orderId => request(`/orders/${orderId}/shipment`),
-  refundOrder: orderId => request(`/orders/${orderId}/refund`, { method: 'POST' }),
+  requestReturn: (orderId, reason) => request(`/orders/${orderId}/returns`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason }),
+  }),
+  getReturn: returnId => request(`/returns/${returnId}`),
   googleLoginUrl: 'http://localhost:8080/oauth2/authorization/google',
   askAi: (message, signal) => request('/ai/ask', {
     method: 'POST',

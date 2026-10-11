@@ -2,6 +2,7 @@ package com.example.shop.client;
 
 import com.example.shop.entity.Order;
 import com.example.shop.entity.Product;
+import com.example.shop.entity.Return;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
@@ -42,6 +43,20 @@ public class WarehouseClient {
         .retrieve().toBodilessEntity();
   }
 
+  public void inspectReturn(Return returnRequest, String disposition, String inspectionNote) {
+    List<ReturnItem> items = returnRequest.getItems().stream()
+        .map(item -> new ReturnItem(item.getProductId(), item.getQuantity()))
+        .toList();
+    restClient.post().uri("/internal/returns/inspect").contentType(MediaType.APPLICATION_JSON)
+        .body(new ReturnInspection(
+            returnRequest.getId(),
+            returnRequest.getOrder().getId(),
+            disposition,
+            inspectionNote,
+            items))
+        .retrieve().toBodilessEntity();
+  }
+
   private void projectProduct(Product product) {
     restClient
         .post()
@@ -58,4 +73,11 @@ public class WarehouseClient {
       Long productId, String sku, String name, int initialOnHandQuantity) {}
   private record Reservation(Long orderId, List<Item> items) {}
   private record Item(Long productId, int quantity) {}
+  private record ReturnInspection(
+      Long returnId,
+      Long orderId,
+      String disposition,
+      String inspectionNote,
+      List<ReturnItem> items) {}
+  private record ReturnItem(Long productId, int quantity) {}
 }

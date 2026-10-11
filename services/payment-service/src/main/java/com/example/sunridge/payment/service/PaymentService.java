@@ -1,10 +1,13 @@
 package com.example.sunridge.payment.service;
 
 import com.example.sunridge.payment.entity.Payment;
+import com.example.sunridge.payment.entity.PaymentRefund;
 import com.example.sunridge.payment.model.CreatePaymentRequest;
 import com.example.sunridge.payment.model.CreatePaymentResponse;
 import com.example.sunridge.payment.model.RefundResponse;
 import com.example.sunridge.payment.repository.PaymentRepository;
+import com.example.sunridge.payment.repository.PaymentRefundRepository;
+import java.time.Instant;
 import com.stripe.Stripe;
 import com.stripe.model.PaymentIntent;
 import com.stripe.model.Refund;
@@ -18,11 +21,15 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class PaymentService {
   private final PaymentRepository payments;
+  private final PaymentRefundRepository paymentRefunds;
   private final String secretKey;
 
   public PaymentService(
-      PaymentRepository payments, @Value("${stripe.secret-key}") String secretKey) {
+      PaymentRepository payments,
+      PaymentRefundRepository paymentRefunds,
+      @Value("${stripe.secret-key}") String secretKey) {
     this.payments = payments;
+    this.paymentRefunds = paymentRefunds;
     this.secretKey = secretKey;
   }
 
@@ -78,12 +85,17 @@ public class PaymentService {
   }
 
   @Transactional
-  public RefundResponse refund(Long commerceOrderId) {
+  public RefundResponse refund(Long commerceOrderId, Long commerceReturnId) {
+    PaymentRefund existingRefund = paymentRefunds.findByCommerceReturnId(commerceReturnId).orElse(null);
+    if (existingRefund != null) {
+      return new RefundResponse(
+          existingRefund.getProviderRefundId(),
+          existingRefund.getAmount(),
+          existingRefund.getCurrency(),
+          existingRefund.getStatus());
+    }
     Payment payment = payments.findByCommerceOrderId(commerceOrderId)
         .orElseThrow(() -> new IllegalArgumentException("Payment not found"));
-    if ("REFUNDED".equals(payment.getStatus())) {
-      return new RefundResponse(payment.getProviderRefundId(), payment.getAmount(), payment.getCurrency(), "SUCCEEDED");
-    }
     if (!"PAID".equals(payment.getStatus())) {
       throw new IllegalStateException("Only paid payments can be refunded.");
     }
@@ -92,13 +104,24 @@ public class PaymentService {
       Stripe.apiKey = secretKey;
       Refund refund = Refund.create(
           RefundCreateParams.builder().setPaymentIntent(payment.getProviderPaymentId()).build(),
-          RequestOptions.builder().setIdempotencyKey("refund-order-" + commerceOrderId).build());
+          RequestOptions.builder().setIdempotencyKey("refund-return-" + commerceReturnId).build());
       if (!"succeeded".equals(refund.getStatus())) {
         throw new IllegalStateException("Stripe refund is " + refund.getStatus());
       }
       payment.setProviderRefundId(refund.getId());
       payment.setStatus("REFUNDED");
-      return new RefundResponse(refund.getId(), payment.getAmount(), payment.getCurrency(), "SUCCEEDED");
+      PaymentRefund paymentRefund = new PaymentRefund();
+      paymentRefund.setPayment(payment);
+      paymentRefund.setCommerceOrderId(commerceOrderId);
+      paymentRefund.setCommerceReturnId(commerceReturnId);
+      paymentRefund.setProviderRefundId(refund.getId());
+      paymentRefund.setAmount(payment.getAmount());
+      paymentRefund.setCurrency(payment.getCurrency());
+      paymentRefund.setStatus("SUCCEEDED");
+      paymentRefund.setCompletedAt(Instant.now());
+      paymentRefunds.save(paymentRefund);
+      return new RefundResponse(
+          refund.getId(), payment.getAmount(), payment.getCurrency(), "SUCCEEDED");
     } catch (IllegalStateException exception) {
       throw exception;
     } catch (Exception exception) {

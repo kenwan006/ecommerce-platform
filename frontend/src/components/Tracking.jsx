@@ -6,6 +6,7 @@ export default function Tracking() {
   const [shipment, setShipment] = useState(null);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [returnRequest, setReturnRequest] = useState(null);
 
   useEffect(() => {
     api.getOrders()
@@ -24,6 +25,16 @@ export default function Tracking() {
     }
   };
 
+  const requestReturn = async orderId => {
+    try {
+      const result = await api.requestReturn(orderId, 'Customer requested return');
+      setReturnRequest(result);
+      setMessage(`Return approved. Use label ${result.rmaNumber} to send the package back.`);
+    } catch (error) {
+      setMessage(error.message);
+    }
+  };
+
   return (
     <section className="tracking-page">
       <p>ORDER TRACKING</p>
@@ -35,10 +46,15 @@ export default function Tracking() {
         <article className="tracking-card">
           <h2>Your orders</h2>
           {orders.map(order => (
-            <button className="tracking-order" key={order.id} onClick={() => track(order.id)}>
-              <span><strong>Order #{order.id}</strong>{order.items.map(item => item.productName).join(', ')}</span>
-              <b>{order.status}</b>
-            </button>
+            <div className="tracking-order-row" key={order.id}>
+              <button className="tracking-order" onClick={() => track(order.id)}>
+                <span><strong>Order #{order.id}</strong>{order.items.map(item => item.productName).join(', ')}</span>
+                <b>{order.status}</b>
+              </button>
+              {order.status === 'PAID' && (
+                <button onClick={() => requestReturn(order.id)}>Request return</button>
+              )}
+            </div>
           ))}
           {!orders.length && <p className="warehouse-empty">You have no orders yet.</p>}
         </article>
@@ -59,6 +75,11 @@ export default function Tracking() {
             ))}
             {!shipment.events.length && <p className="warehouse-empty">Label created. Carrier scans will appear here.</p>}
           </>}
+          {returnRequest && <div className="tracking-summary">
+            <strong>{returnRequest.status}</strong>
+            <span>{returnRequest.rmaNumber} · {returnRequest.trackingNumber}</span>
+            <small>Prepaid demo label: {returnRequest.labelUrl}</small>
+          </div>}
         </article>
       </div>}
     </section>

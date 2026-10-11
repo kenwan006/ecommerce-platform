@@ -20,8 +20,11 @@ public class PaymentClient {
         .body(new CreatePayment(orderId, checkoutId, amount, currency)).retrieve().body(Payment.class);
   }
 
-  public Refund refund(Long orderId) {
-    return restClient.post().uri("/internal/payments/{orderId}/refund", orderId)
+  public Refund refund(Long orderId, Long returnId) {
+    return restClient.post().uri(builder -> builder
+            .path("/internal/payments/{orderId}/refund")
+            .queryParam("returnId", returnId)
+            .build(orderId))
         .retrieve().body(Refund.class);
   }
 

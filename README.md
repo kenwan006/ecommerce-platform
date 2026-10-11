@@ -10,19 +10,19 @@ React UI (5173) ───────► Commerce (8080, sunridge_commerce)
      │                         │ REST            │ Kafka consumer
      ▼                         ▼                 ▼
 FastAPI agent (8000)     Warehouse (8082)   Payment events
-                          sunridge_warehouse        ▲
+                          sunridge_warehouse         ▲
                                   ▲                  │
                                   │ REST             │ outbox publisher
                                   └── Commerce ──► Payment (8083, sunridge_payment)
-                                                       ▲
+                                                      ▲
 Stripe.js / Stripe CLI ───────────────────────────────┘
 ```
 
 | Component | Port | Database | Responsibility |
 | --- | ---: | --- | --- |
-| Commerce | 8080 | `sunridge_commerce` | identity, catalog, orders, checkout coordination, fraud demo |
-| Warehouse | 8082 | `sunridge_warehouse` | inventory, reservations, movements, fulfillment, shipment |
-| Payment | 8083 | `sunridge_payment` | Stripe PaymentIntents, webhooks, payment outbox |
+| Commerce | 8080 | `sunridge_commerce` | identity, catalog, orders, checkout coordination, returns, fraud demo |
+| Warehouse | 8082 | `sunridge_warehouse` | inventory, reservations, movements, fulfillment, shipment, return inspection |
+| Payment | 8083 | `sunridge_payment` | Stripe PaymentIntents, refunds, webhooks, payment outbox |
 | FastAPI agent | 8000 | — | AI orchestration and order tools |
 | Redpanda | 9092 | — | Kafka-compatible event broker |
 
@@ -116,6 +116,16 @@ curl -X POST http://localhost:8082/api/carriers/fedex/webhook/test \
 
 The production-shaped endpoint is `POST /api/carriers/fedex/webhook`; it validates an HMAC signature when a FedEx webhook security token is configured. The local test endpoint deliberately avoids any FedEx account or public HTTPS callback requirement.
 
+## Returns and refunds
+
+Customers can request a return from **Track shipment** for a paid order. Commerce creates an auto-approved return request with a demo RMA and prepaid-label reference. After Warehouse inspection, sellable items are restocked and recorded as a `RETURN_RECEIPT` inventory movement. Commerce then calls Payment for an idempotent refund.
+
+The original charge remains in `payments`; the separate money movement is stored in `payment_refunds`, linked to the Commerce return ID. See [Return and refund flow](RETURN_FLOW.md) for the detailed lifecycle.
+
+## End-to-end tests
+
+The opt-in Playwright suite exercises the real local services, MySQL, Redpanda, Stripe test mode, shipment, return, restock, and refund flow. See [frontend/e2e/README.md](frontend/e2e/README.md). Live runs intentionally leave their generated test records in the local databases for inspection.
+
 ## Commerce order state machine
 
 Commerce owns the customer-facing order lifecycle. It uses typed states and business events rather than arbitrary status strings:
@@ -127,6 +137,7 @@ PENDING_PAYMENT --FRAUD_REVIEW_REQUIRED--> FRAUD_REVIEW
 PENDING_PAYMENT --FRAUD_DECLINED----> FRAUD_DECLINED
 FRAUD_REVIEW ---REVIEW_APPROVED------> PENDING_PAYMENT
 FRAUD_REVIEW ---REVIEW_DECLINED------> FRAUD_DECLINED
+PAID -----------REFUND_SUCCEEDED------> REFUNDED
 ```
 
 Each transition has a guard and a local action. For example, a payment event must reference the order's expected PaymentIntent; a successful transition writes an `order_status_history` audit row. Cross-service side effects should be emitted through an outbox event rather than called directly from a state-machine action.
@@ -149,5 +160,6 @@ Use Stripe test card `4242 4242 4242 4242`, any future expiry date, and any thre
 
 - [Microservice migration details](MICROSERVICE_MIGRATION.md)
 - [Payment process flow](PAYMENT_PROCESS_FLOW.md)
+- [Return and refund flow](RETURN_FLOW.md)
 - [Google OAuth and application JWT flow](GOOGLE_OAUTH_JWT_FLOW.md)
 - [Project handoff](PROJECT_HANDOFF.md)

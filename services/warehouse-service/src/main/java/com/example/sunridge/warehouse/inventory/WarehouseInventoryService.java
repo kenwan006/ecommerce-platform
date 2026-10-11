@@ -7,6 +7,7 @@ import com.example.sunridge.warehouse.entity.InventoryMovement;
 import com.example.sunridge.warehouse.entity.InventoryReservation;
 import com.example.sunridge.warehouse.entity.InventoryReservationItem;
 import com.example.sunridge.warehouse.entity.Shipment;
+import com.example.sunridge.warehouse.entity.ReturnReceipt;
 import com.example.sunridge.warehouse.entity.Warehouse;
 import com.example.sunridge.warehouse.entity.WarehouseProduct;
 import com.example.sunridge.warehouse.model.FulfillmentResponse;
@@ -15,11 +16,13 @@ import com.example.sunridge.warehouse.model.InventoryMovementResponse;
 import com.example.sunridge.warehouse.model.InventoryResponse;
 import com.example.sunridge.warehouse.model.ProductProjectionRequest;
 import com.example.sunridge.warehouse.model.ReservationRequest;
+import com.example.sunridge.warehouse.model.ReturnInspectionRequest;
 import com.example.sunridge.warehouse.repository.FulfillmentOrderRepository;
 import com.example.sunridge.warehouse.repository.InventoryLevelRepository;
 import com.example.sunridge.warehouse.repository.InventoryMovementRepository;
 import com.example.sunridge.warehouse.repository.InventoryReservationRepository;
 import com.example.sunridge.warehouse.repository.ShipmentRepository;
+import com.example.sunridge.warehouse.repository.ReturnReceiptRepository;
 import com.example.sunridge.warehouse.repository.WarehouseProductRepository;
 import com.example.sunridge.warehouse.repository.WarehouseRepository;
 import java.time.Instant;
@@ -38,6 +41,7 @@ public class WarehouseInventoryService {
   private final FulfillmentOrderRepository fulfillmentRepository;
   private final ShipmentRepository shipmentRepository;
   private final InventoryMovementRepository movementRepository;
+  private final ReturnReceiptRepository returnReceiptRepository;
 
   public WarehouseInventoryService(
       WarehouseRepository warehouseRepository,
@@ -46,7 +50,8 @@ public class WarehouseInventoryService {
       InventoryReservationRepository reservationRepository,
       FulfillmentOrderRepository fulfillmentRepository,
       ShipmentRepository shipmentRepository,
-      InventoryMovementRepository movementRepository) {
+      InventoryMovementRepository movementRepository,
+      ReturnReceiptRepository returnReceiptRepository) {
     this.warehouseRepository = warehouseRepository;
     this.productRepository = productRepository;
     this.levelRepository = levelRepository;
@@ -54,6 +59,7 @@ public class WarehouseInventoryService {
     this.fulfillmentRepository = fulfillmentRepository;
     this.shipmentRepository = shipmentRepository;
     this.movementRepository = movementRepository;
+    this.returnReceiptRepository = returnReceiptRepository;
   }
 
   @Transactional
@@ -118,6 +124,35 @@ public class WarehouseInventoryService {
     if (reservation == null || !"RESERVED".equals(reservation.getStatus())) return;
     release(reservation);
     reservation.setStatus("RELEASED");
+  }
+
+  /** Records warehouse inspection. Only sellable returns are returned to on-hand inventory. */
+  @Transactional
+  public void inspectReturn(ReturnInspectionRequest request) {
+    if (returnReceiptRepository.existsByCommerceReturnId(request.returnId())) return;
+    if (!"SELLABLE".equals(request.disposition()) && !"DAMAGED".equals(request.disposition())) {
+      throw new IllegalArgumentException("disposition must be SELLABLE or DAMAGED");
+    }
+
+    Warehouse warehouse = mainWarehouse();
+    if ("SELLABLE".equals(request.disposition())) {
+      request.items().forEach(item -> {
+        level(warehouse, item.productId()).receive(item.quantity());
+        record(
+            warehouse,
+            item.productId(),
+            "RETURN_RECEIPT",
+            item.quantity(),
+            "Return #" + request.returnId() + " for order #" + request.orderId());
+      });
+    }
+
+    ReturnReceipt receipt = new ReturnReceipt();
+    receipt.setCommerceReturnId(request.returnId());
+    receipt.setCommerceOrderId(request.orderId());
+    receipt.setDisposition(request.disposition());
+    receipt.setInspectionNote(request.inspectionNote());
+    returnReceiptRepository.save(receipt);
   }
 
   @Transactional

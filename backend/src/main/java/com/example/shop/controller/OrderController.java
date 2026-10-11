@@ -1,7 +1,6 @@
 package com.example.shop.controller;
 
 import com.example.shop.dto.OrderResponse;
-import com.example.shop.dto.RefundResponse;
 import com.example.shop.dto.ShipmentTrackingResponse;
 import com.example.shop.client.ShipmentClient;
 import com.example.shop.service.OrderService;
@@ -44,11 +43,6 @@ public class OrderController {
       @PathVariable Long orderId, Authentication authentication) {
     service.requireOrderOwnership(orderId, currentUserId(authentication));
     return shipmentClient.findByOrderId(orderId);
-  }
-
-  @PostMapping("/{orderId}/refund")
-  public RefundResponse refund(@PathVariable Long orderId, Authentication authentication) {
-    return service.refund(orderId, currentUserId(authentication));
   }
 
   private Long currentUserId(Authentication authentication) {

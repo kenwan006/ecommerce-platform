@@ -38,6 +38,22 @@ sequenceDiagram
 - The payment outbox makes the database update and the intent to publish an event atomic. Publishing is at-least-once, so both Commerce and Warehouse store processed event IDs to ignore duplicates.
 - Repeating checkout with the same `(userId, checkoutId)` reuses the Commerce order and the existing Stripe PaymentIntent.
 
+## Return and refund lifecycle
+
+```text
+Customer requests return in Commerce
+  -> return_requests + return_items created (APPROVED)
+  -> demo RMA and prepaid-label reference returned to customer
+  -> Warehouse inspects the package
+  -> SELLABLE items: on-hand inventory increases; RETURN_RECEIPT movement is written
+  -> Commerce calls Payment with (orderId, returnId)
+  -> Payment creates/refetches the provider refund using returnId as its idempotency key
+  -> payments is marked REFUNDED and a separate payment_refunds transaction row is stored
+  -> Commerce marks return, payment status, and order status REFUNDED
+```
+
+For this demo, the synchronous Stripe refund response marks the refund complete. Production should also consume and reconcile the provider's refund webhook.
+
 ## Local webhook forwarding
 
 ```bash

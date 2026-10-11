@@ -8,6 +8,7 @@ import com.example.sunridge.warehouse.model.InventoryMovementResponse;
 import com.example.sunridge.warehouse.model.InventoryResponse;
 import com.example.sunridge.warehouse.model.ProductProjectionRequest;
 import com.example.sunridge.warehouse.model.ReservationRequest;
+import com.example.sunridge.warehouse.model.ReturnInspectionRequest;
 import com.example.sunridge.warehouse.model.ShipmentRequest;
 import com.example.sunridge.warehouse.model.ShipmentTrackingEventResponse;
 import com.example.sunridge.warehouse.model.ShipmentTrackingResponse;
@@ -48,6 +49,11 @@ public class WarehouseController {
   @PostMapping("/internal/reservations/{orderId}/release")
   public void release(@PathVariable Long orderId) {
     inventoryService.release(orderId);
+  }
+
+  @PostMapping("/internal/returns/inspect")
+  public void inspectReturn(@Valid @RequestBody ReturnInspectionRequest request) {
+    inventoryService.inspectReturn(request);
   }
 
   @GetMapping("/internal/shipments/order/{orderId}")
