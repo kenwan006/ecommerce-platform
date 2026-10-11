@@ -31,7 +31,6 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -91,20 +90,34 @@ public class WarehouseInventoryService {
 
   @Transactional
   public void reserve(ReservationRequest request) {
+    Warehouse warehouse = mainWarehouse();
+
+    // Lock every affected SKU in a stable order. The lock prevents two checkout transactions
+    // from both observing and reserving the same available stock.
+    request.items().stream()
+        .map(ReservationRequest.Item::productId)
+        .distinct()
+        .sorted()
+        .forEach(productId -> levelForUpdate(warehouse, productId));
+
+    // Re-read after the inventory locks are acquired. A concurrent retry may have created the
+    // reservation while this request was waiting for a stock-row lock.
     InventoryReservation existing =
         reservationRepository.findByCommerceOrderId(request.orderId()).orElse(null);
     if (existing != null
-        && ("RESERVED".equals(existing.getStatus()) || "CONFIRMED".equals(existing.getStatus())))
+        && ("RESERVED".equals(existing.getStatus()) || "CONFIRMED".equals(existing.getStatus()))) {
       return;
-    if (existing != null)
+    }
+    if (existing != null) {
       throw new IllegalStateException("Reservation cannot be reused for this order");
-    Warehouse warehouse = mainWarehouse();
+    }
+
     InventoryReservation reservation = new InventoryReservation();
     reservation.setCommerceOrderId(request.orderId());
     reservation.setStatus("RESERVED");
     reservation.setExpiresAt(Instant.now().plus(15, ChronoUnit.MINUTES));
     for (ReservationRequest.Item item : request.items()) {
-      InventoryLevel level = level(warehouse, item.productId());
+      InventoryLevel level = levelForUpdate(warehouse, item.productId());
       level.reserve(item.quantity());
       InventoryReservationItem reservationItem = new InventoryReservationItem();
       reservationItem.setProductId(item.productId());
@@ -222,6 +235,25 @@ public class WarehouseInventoryService {
     shipment.setCarrier(carrier);
     shipment.setTrackingNumber(trackingNumber);
     shipmentRepository.save(shipment);
+
+    String eventId = UUID.randomUUID().toString();
+    WarehouseOutboxEvent event = new WarehouseOutboxEvent();
+    event.setId(eventId);
+    event.setAggregateType("Shipment");
+    event.setAggregateId(shipment.getTrackingNumber());
+    event.setEventType("ShipmentCreated");
+    event.setOccurredAt(Instant.now());
+    event.setPayload(
+        "{\"eventId\":\""
+            + eventId
+            + "\",\"type\":\"ShipmentCreated\",\"orderId\":"
+            + fulfillment.getCommerceOrderId()
+            + ",\"carrier\":\""
+            + carrier
+            + "\",\"trackingNumber\":\""
+            + trackingNumber
+            + "\"}");
+    outboxEvents.save(event);
   }
 
   @Transactional(readOnly = true)
@@ -256,18 +288,6 @@ public class WarehouseInventoryService {
         .toList();
   }
 
-  @Scheduled(fixedDelay = 60_000)
-  @Transactional
-  public void expire() {
-    reservationRepository
-        .findByStatusAndExpiresAtBefore("RESERVED", Instant.now())
-        .forEach(
-            reservation -> {
-              release(reservation);
-              reservation.setStatus("EXPIRED");
-            });
-  }
-
   private Warehouse mainWarehouse() {
     return warehouseRepository
         .findByCode("MAIN")
@@ -283,6 +303,12 @@ public class WarehouseInventoryService {
   private InventoryLevel level(Warehouse warehouse, Long productId) {
     return levelRepository
         .findByWarehouseIdAndProductProductId(warehouse.getId(), productId)
+        .orElseThrow(() -> new IllegalArgumentException("Unknown warehouse product " + productId));
+  }
+
+  private InventoryLevel levelForUpdate(Warehouse warehouse, Long productId) {
+    return levelRepository
+        .findForUpdate(warehouse.getId(), productId)
         .orElseThrow(() -> new IllegalArgumentException("Unknown warehouse product " + productId));
   }
 

@@ -29,7 +29,13 @@ app:
     enabled: false
 
 services:
+  internal-api-key: ${INTERNAL_API_KEY:local-development-internal-key}
   warehouse:
     base-url: ${WAREHOUSE_SERVICE_URL:http://localhost:8082}
   payment:
     base-url: ${PAYMENT_SERVICE_URL:http://localhost:8083}
+
+checkout:
+  expiration:
+    fixed-delay-ms: ${CHECKOUT_EXPIRATION_DELAY_MS:60000}
+    window-seconds: ${CHECKOUT_EXPIRATION_WINDOW_SECONDS:900}

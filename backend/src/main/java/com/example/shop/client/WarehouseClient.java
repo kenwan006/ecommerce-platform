@@ -14,8 +14,13 @@ public class WarehouseClient {
   private final RestClient restClient;
 
   public WarehouseClient(
-      @Value("${services.warehouse.base-url:http://localhost:8082}") String baseUrl) {
-    this.restClient = RestClient.builder().baseUrl(baseUrl).build();
+      @Value("${services.warehouse.base-url:http://localhost:8082}") String baseUrl,
+      @Value("${services.internal-api-key}") String internalApiKey) {
+    this.restClient =
+        RestClient.builder()
+            .baseUrl(baseUrl)
+            .defaultHeader("X-Internal-Api-Key", internalApiKey)
+            .build();
   }
 
   public void reserve(Order order) {

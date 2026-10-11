@@ -19,6 +19,13 @@ spring:
 server:
   port: 8082
 
+internal:
+  # Use a unique secret from a secret manager outside local development.
+  api-key: ${INTERNAL_API_KEY:local-development-internal-key}
+
+outbox:
+  max-attempts: ${OUTBOX_MAX_ATTEMPTS:5}
+
 management:
   endpoints:
     web:

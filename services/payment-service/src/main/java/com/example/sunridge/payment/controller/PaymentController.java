@@ -2,6 +2,7 @@ package com.example.sunridge.payment.controller;
 
 import com.example.sunridge.payment.model.CreatePaymentRequest;
 import com.example.sunridge.payment.model.CreatePaymentResponse;
+import com.example.sunridge.payment.model.CheckoutPaymentResolution;
 import com.example.sunridge.payment.model.RefundResponse;
 import com.example.sunridge.payment.service.PaymentService;
 import jakarta.validation.Valid;
@@ -24,6 +25,11 @@ public class PaymentController {
   @PostMapping
   public CreatePaymentResponse create(@Valid @RequestBody CreatePaymentRequest request) {
     return paymentService.create(request);
+  }
+
+  @PostMapping("/checkout/{checkoutId}/expire")
+  public CheckoutPaymentResolution expireCheckout(@PathVariable String checkoutId) {
+    return paymentService.expireCheckout(checkoutId);
   }
 
   @PostMapping("/{commerceOrderId}/refund")

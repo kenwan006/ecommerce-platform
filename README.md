@@ -23,6 +23,7 @@ Stripe.js / Stripe CLI ───────────────────
 | Commerce | 8080 | `sunridge_commerce` | identity, catalog, orders, checkout coordination, returns, fraud demo |
 | Warehouse | 8082 | `sunridge_warehouse` | inventory, reservations, movements, fulfillment, shipment, return inspection |
 | Payment | 8083 | `sunridge_payment` | Stripe PaymentIntents, refunds, webhooks, payment outbox |
+| Notification | 8084 | `sunridge_notification` | Kafka-driven customer emails and PDF documents |
 | FastAPI agent | 8000 | — | AI orchestration and order tools |
 | Redpanda | 9092 | — | Kafka-compatible event broker |
 
@@ -42,6 +43,9 @@ Start Redpanda:
 docker compose -f docker-compose.infrastructure.yml up -d
 ```
 
+That command also starts Mailpit. It captures local SMTP mail instead of delivering it externally;
+open [Mailpit](http://localhost:8025) to inspect messages and PDF attachments.
+
 Start each Spring Boot service with the `local` profile. Local credentials belong only in ignored `application-local.yml` files.
 
 ```bash
@@ -52,6 +56,9 @@ cd services/warehouse-service
 SPRING_PROFILES_ACTIVE=local mvn spring-boot:run
 
 cd services/payment-service
+SPRING_PROFILES_ACTIVE=local mvn spring-boot:run
+
+cd services/notification-service
 SPRING_PROFILES_ACTIVE=local mvn spring-boot:run
 ```
 
@@ -100,7 +107,27 @@ DELETE /api/cart/items/{productId}
 DELETE /api/cart
 ```
 
-Adding an item to a cart does **not** reserve stock. Warehouse creates an expiring inventory reservation only when checkout begins; payment failure and the reservation-expiry job release it safely.
+Adding an item to a cart does **not** reserve stock. Warehouse creates an inventory reservation only when checkout begins. Commerce owns expiry: before releasing an abandoned reservation it asks Payment to retrieve and, when safe, cancel the Stripe PaymentIntent. A `processing` or `succeeded` PaymentIntent keeps the reservation intact.
+
+## Checkout expiry, reconciliation, and internal service authentication
+
+Commerce runs a checkout-expiration job every minute by default. After the 15-minute checkout
+window, it asks Payment to retrieve the authoritative Stripe PaymentIntent state:
+
+```text
+requires_payment_method / requires_action → cancel at Stripe → release Warehouse reservation
+processing / succeeded                    → keep reservation; await/rebuild final payment state
+```
+
+Payment separately reconciles nonterminal PaymentIntents every minute. This repairs missed Stripe
+webhooks. Warehouse uses pessimistic database locks on inventory-level rows during reservation;
+the affected SKU rows are locked in product-ID order before availability is checked, which prevents
+concurrent checkouts from overselling the same stock.
+
+All `/internal/**` HTTP endpoints on Payment and Warehouse require an `X-Internal-Api-Key` header.
+Commerce supplies it automatically. Locally, all services share the harmless default value. Set the
+same `INTERNAL_API_KEY` environment variable for Commerce, Warehouse, and Payment outside local
+development; use a secret manager and rotate it in a real deployment.
 
 ## Shipment tracking demo
 
@@ -125,6 +152,31 @@ The original charge remains in `payments`; the separate money movement is stored
 Payment also reconciles nonterminal PaymentIntents with Stripe on a schedule. This repairs a
 missed webhook—for example, a local `CREATED` payment whose Stripe PaymentIntent is already
 `succeeded`—by emitting the same idempotent outbox event as normal webhook processing.
+
+## Outbox delivery retry and dead letters
+
+Payment and Warehouse publish outbox events independently, one event at a time. A failed Kafka
+send does not roll back or block successful events in the same batch. Failed rows record a retry
+count, error, and exponential-backoff `next_attempt_at`; after five attempts by default they are
+copied to `outbox_dead_letters` / `warehouse_outbox_dead_letters` and removed from normal polling.
+This keeps a poison event from blocking later payment or warehouse events. Delivery remains
+at-least-once: a process can fail after Kafka acknowledges a send but before `published_at` is
+saved, so consumers continue to deduplicate by event ID.
+
+Alert in a real deployment on unpublished, non-dead-letter outbox rows older than five minutes
+and on any new dead-letter row. Configure the retry threshold with `OUTBOX_MAX_ATTEMPTS`.
+
+## Customer notifications and documents
+
+The Notification service consumes `PaymentSucceeded` and `ShipmentCreated` events. It retrieves
+the minimal customer/order summary through Commerce's protected internal API, generates an
+invoice or packing-slip PDF, stores a demo copy in `sunridge_notification.document_records`, and
+sends an email through SMTP. Locally SMTP points at Mailpit (`localhost:1025`), so no real email
+is sent; inspect the result at `http://localhost:8025`.
+
+The corresponding `notification_deliveries` row uses the source event ID as a unique key, making
+Kafka redelivery safe. In production, replace Mailpit with SES/SendGrid and store document blobs
+in S3 rather than MySQL.
 
 ## End-to-end tests
 

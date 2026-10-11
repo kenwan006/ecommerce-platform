@@ -21,10 +21,17 @@ stripe:
   secret-key: ${STRIPE_SECRET_KEY:}
   webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
 
+internal:
+  # Use a unique secret from a secret manager outside local development.
+  api-key: ${INTERNAL_API_KEY:local-development-internal-key}
+
 payments:
   reconciliation:
     fixed-delay-ms: ${PAYMENT_RECONCILIATION_DELAY_MS:60000}
     grace-period-seconds: ${PAYMENT_RECONCILIATION_GRACE_PERIOD_SECONDS:60}
+
+outbox:
+  max-attempts: ${OUTBOX_MAX_ATTEMPTS:5}
 
 management:
   endpoints:

@@ -22,6 +22,17 @@ public class WarehouseOutboxEvent {
 
   private Instant occurredAt;
   private Instant publishedAt;
+  private int retryCount;
+
+  @Column(columnDefinition = "text")
+  private String lastError;
+
+  private Instant nextAttemptAt;
+  private Instant deadLetteredAt;
+
+  public String getId() {
+    return id;
+  }
 
   public String getAggregateId() {
     return aggregateId;
@@ -29,6 +40,14 @@ public class WarehouseOutboxEvent {
 
   public String getPayload() {
     return payload;
+  }
+
+  public String getEventType() {
+    return eventType;
+  }
+
+  public int getRetryCount() {
+    return retryCount;
   }
 
   public void setId(String id) {
@@ -57,5 +76,21 @@ public class WarehouseOutboxEvent {
 
   public void setPublishedAt(Instant publishedAt) {
     this.publishedAt = publishedAt;
+  }
+
+  public void setRetryCount(int retryCount) {
+    this.retryCount = retryCount;
+  }
+
+  public void setLastError(String lastError) {
+    this.lastError = lastError;
+  }
+
+  public void setNextAttemptAt(Instant nextAttemptAt) {
+    this.nextAttemptAt = nextAttemptAt;
+  }
+
+  public void setDeadLetteredAt(Instant deadLetteredAt) {
+    this.deadLetteredAt = deadLetteredAt;
   }
 }

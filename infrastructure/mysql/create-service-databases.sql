@@ -1,3 +1,4 @@
 CREATE DATABASE IF NOT EXISTS sunridge_commerce;
 CREATE DATABASE IF NOT EXISTS sunridge_payment;
 CREATE DATABASE IF NOT EXISTS sunridge_warehouse;
+CREATE DATABASE IF NOT EXISTS sunridge_notification;

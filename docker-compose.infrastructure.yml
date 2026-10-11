@@ -22,3 +22,10 @@ services:
     ports:
       - "9092:9092"
       - "9644:9644"
+
+  mailpit:
+    image: axllent/mailpit:v1.21
+    container_name: sunridge-mailpit
+    ports:
+      - "1025:1025"
+      - "8025:8025"

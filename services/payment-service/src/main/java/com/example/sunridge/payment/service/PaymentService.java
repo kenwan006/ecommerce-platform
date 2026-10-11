@@ -4,6 +4,7 @@ import com.example.sunridge.payment.entity.Payment;
 import com.example.sunridge.payment.entity.PaymentRefund;
 import com.example.sunridge.payment.model.CreatePaymentRequest;
 import com.example.sunridge.payment.model.CreatePaymentResponse;
+import com.example.sunridge.payment.model.CheckoutPaymentResolution;
 import com.example.sunridge.payment.model.RefundResponse;
 import com.example.sunridge.payment.repository.PaymentRepository;
 import com.example.sunridge.payment.repository.PaymentRefundRepository;
@@ -21,14 +22,17 @@ import org.springframework.transaction.annotation.Transactional;
 public class PaymentService {
   private final PaymentRepository payments;
   private final PaymentRefundRepository paymentRefunds;
+  private final StripeWebhookService paymentState;
   private final String secretKey;
 
   public PaymentService(
       PaymentRepository payments,
       PaymentRefundRepository paymentRefunds,
+      StripeWebhookService paymentState,
       @Value("${stripe.secret-key}") String secretKey) {
     this.payments = payments;
     this.paymentRefunds = paymentRefunds;
+    this.paymentState = paymentState;
     this.secretKey = secretKey;
   }
 
@@ -80,6 +84,48 @@ public class PaymentService {
           payment.getStatus());
     } catch (Exception exception) {
       throw new IllegalStateException("Could not create Stripe payment", exception);
+    }
+  }
+
+  /**
+   * Resolves an expired checkout against Stripe before Commerce releases stock. A local CREATED
+   * status is not enough: the browser may have submitted payment just before the timeout.
+   */
+  @Transactional
+  public CheckoutPaymentResolution expireCheckout(String checkoutId) {
+    Payment payment =
+        payments
+            .findByCheckoutId(checkoutId)
+            .orElseThrow(() -> new IllegalArgumentException("Payment not found for checkout"));
+    try {
+      if (secretKey.isBlank()) throw new IllegalStateException("STRIPE_SECRET_KEY is required");
+      Stripe.apiKey = secretKey;
+      PaymentIntent intent = PaymentIntent.retrieve(payment.getProviderPaymentId());
+      return switch (intent.getStatus()) {
+        case "succeeded" -> {
+          paymentState.reconcilePaymentIntent(
+              intent, "checkout-expiration-reconcile-" + intent.getId() + "-succeeded");
+          yield new CheckoutPaymentResolution("SUCCEEDED");
+        }
+        case "processing" -> {
+          payment.setStatus("PROCESSING");
+          yield new CheckoutPaymentResolution("PROCESSING");
+        }
+        case "canceled" -> {
+          payment.setStatus("CANCELED");
+          yield new CheckoutPaymentResolution("CANCELED");
+        }
+        default -> {
+          PaymentIntent canceled = intent.cancel();
+          if (!"canceled".equals(canceled.getStatus())) {
+            throw new IllegalStateException("Stripe did not cancel incomplete payment");
+          }
+          payment.setStatus("CANCELED");
+          yield new CheckoutPaymentResolution("CANCELED");
+        }
+      };
+    } catch (Exception exception) {
+      throw new IllegalStateException("Could not resolve expired Stripe payment", exception);
     }
   }
 

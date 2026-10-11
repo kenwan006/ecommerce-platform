@@ -1,6 +1,7 @@
 package com.example.shop.repository;
 
 import com.example.shop.entity.Order;
+import com.example.shop.order.OrderStatus;
 import java.util.List;
 import java.util.Optional;
 import java.time.Instant;
@@ -19,4 +20,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
   Optional<Order> findByStripePaymentIntentId(String paymentIntentId);
 
   long countByUserIdAndCreatedAtAfter(Long userId, Instant createdAt);
+
+  List<Order> findTop100ByStatusAndCreatedAtBeforeOrderByCreatedAtAsc(
+      OrderStatus status, Instant createdAt);
 }
