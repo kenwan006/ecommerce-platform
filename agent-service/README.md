@@ -11,6 +11,20 @@ uvicorn app.main:app --reload --port 8000
 
 It is not an order, payment, or inventory system of record. Commerce (`8080`) owns customer/order data; Warehouse (`8082`) owns stock and fulfillment; Payment (`8083`) owns Stripe payment processing. See the root [README](../README.md) for the complete local startup sequence.
 
+## Container and CI readiness
+
+The service is deployment-ready without being connected to a cloud environment yet:
+
+```bash
+docker build -t ecommerce-agent ./agent-service
+docker run --rm -p 8000:8000 --env-file agent-service/.env ecommerce-agent
+curl http://localhost:8000/health
+```
+
+`Dockerfile` runs the application as a non-root user and never copies `.env` into the image. Supply production values through a platform secret store or runtime environment variables, including `OPENAI_API_KEY`, `GITHUB_TOKEN`, `SPRING_API_URL`, and `RAG_DATABASE_URL`.
+
+GitHub Actions workflow [agent-service-ci.yml](../.github/workflows/agent-service-ci.yml) runs on agent-service changes. It installs dependencies, validates imports, and builds the container image. It intentionally does **not** push an image or deploy; an AWS ECR/ECS/EKS deployment stage can be added once the target environment and secrets are configured.
+
 ## Internal-document RAG
 
 Place approved internal policy and guide documents as UTF-8 `.md` or `.txt`

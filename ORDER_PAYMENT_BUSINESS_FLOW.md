@@ -14,6 +14,8 @@ Customer
 
 Each service owns its own data. Commerce never directly edits Warehouse or Payment tables.
 
+> **Reading this guide:** “Current demo” describes code that exists in this repository. “Production recommendation” describes behavior a mature commerce platform should add.
+
 | Service | Owns | Does not own |
 |---|---|---|
 | Commerce | cart, order, order items, checkout idempotency, customer order state | physical inventory, provider payment state |
@@ -33,9 +35,9 @@ POST /api/cart/items
 
 Why no reservation? Reserving every cart item lets abandoned carts exhaust stock. A customer can keep a cart for days; a reservation should be short-lived and tied to an active checkout.
 
-## 2. Checkout starts
+## 2. Create checkout and reserve inventory
 
-When the customer clicks **Continue to secure payment**, React generates a `checkoutId` and sends the cart items to Commerce.
+When the customer clicks **Continue to secure payment**, React generates a `checkoutId` and sends the cart items to Commerce. This is the **create-checkout request**. It is separate from the later card-payment submission to Stripe.
 
 ```text
 POST /api/checkout
@@ -58,7 +60,16 @@ Commerce then performs this synchronous preparation flow:
 5. Return paymentIntentId and clientSecret to React.
 ```
 
-The reservation is created with an expiry. It moves stock from `available` to `reserved` only if sufficient stock exists. The stock operation must be atomic so two customers cannot buy the final unit.
+At this point, the customer has not submitted payment details yet. The reservation is already committed in Warehouse with an expiry, so that stock is held while Stripe Elements displays the payment form. It moves stock from `available` to `reserved` only if sufficient stock exists. The stock operation must be atomic so two customers cannot buy the final unit.
+
+Commerce commits the local order before calling Warehouse; Warehouse commits the reservation in its own transaction before Payment is called. These are not one distributed transaction. If Warehouse rejects the reservation, no PaymentIntent is created. The current demo keeps the idempotent pending order so the same checkout can be retried; production systems commonly record an explicit `INVENTORY_UNAVAILABLE` checkout/order-attempt outcome as well.
+
+```text
+Create checkout request                         Submit card payment
+React → Commerce → Warehouse reservation        React → Stripe Elements → Stripe
+                    ↓                                      ↓
+          reservation commits first                   Stripe webhook later
+```
 
 ## 3. Payment confirmation
 
@@ -144,7 +155,8 @@ PENDING_PAYMENT + PAYMENT_SUCCEEDED
 |---|---|
 | Customer retries checkout after timeout | Same `checkoutId` returns the same order and provider payment intent. |
 | Inventory is unavailable | Warehouse rejects the reservation; no payment should begin. |
-| Customer closes the browser | Reservation expires and a scheduled job releases it. Stripe webhook can still finalize payment if payment completed. |
+| Customer closes the browser before payment | Reservation expires and a scheduled job releases it. |
+| Payment completes after reservation expiry | Payment can still become `PAID`; this requires a compensation policy before fulfillment. The current demo needs manual reconciliation for this edge case. |
 | Stripe webhook is delivered twice | Payment uses the provider event ID/idempotency checks; downstream consumers use processed-event IDs. |
 | Payment fails | Payment publishes `PaymentFailed`; Warehouse releases the reservation. |
 | Payment succeeds but UI never sees it | Webhook and Kafka still drive the final state. Customer sees the paid order after refresh. |
@@ -180,6 +192,8 @@ Typical relational-database implementations use either:
 - a transaction with row locking/optimistic versioning on the inventory row.
 
 Only the customer whose reservation succeeds proceeds to payment. The losing customer receives a clear out-of-stock response; Commerce must not create a PaymentIntent for unavailable items.
+
+**Current demo:** Warehouse uses JPA optimistic locking (`@Version`) on `inventory_levels`, which prevents a lost update/oversell. A concurrent collision can currently surface as a conflict/error; a production implementation should retry a bounded number of times and translate an exhausted retry or insufficient stock into a clean `OUT_OF_STOCK` response.
 
 ### Payment provider timeout
 
@@ -236,7 +250,7 @@ The order should stay `PENDING_PAYMENT` while the payment is pending. Final stat
 
 ### Cart price or promotion changed
 
-Never trust the client-provided total. At checkout, Commerce reloads the products and recalculates price, discount, shipping, tax, and final total server-side. If the displayed price changed, return the updated checkout summary and require customer confirmation where the business requires it.
+Never trust the client-provided total. **Current demo:** Commerce reloads products and recalculates the product subtotal server-side. **Production recommendation:** also calculate discounts, shipping, tax, currency conversion, and final total server-side. If the displayed price changed, return an updated checkout summary and require customer confirmation where the business requires it.
 
 ## 9. Do we need Redis for real-time stock?
 

@@ -71,4 +71,12 @@ app.add_middleware(
     allow_methods=["POST", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
 )
+
+
+@app.get("/health")
+async def health() -> dict[str, str]:
+    """Liveness endpoint used by local Docker and future platform probes."""
+    return {"status": "ok"}
+
+
 app.include_router(ai_router)
