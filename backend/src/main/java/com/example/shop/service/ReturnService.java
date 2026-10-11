@@ -1,6 +1,5 @@
 package com.example.shop.service;
 
-import com.example.shop.client.PaymentClient;
 import com.example.shop.client.WarehouseClient;
 import com.example.shop.dto.ReturnRequest;
 import com.example.shop.dto.ReturnResponse;
@@ -9,8 +8,6 @@ import com.example.shop.entity.OrderItem;
 import com.example.shop.entity.Return;
 import com.example.shop.entity.ReturnItem;
 import com.example.shop.exception.ResourceNotFoundException;
-import com.example.shop.order.OrderEvent;
-import com.example.shop.order.OrderStateMachine;
 import com.example.shop.order.OrderStatus;
 import com.example.shop.repository.OrderRepository;
 import com.example.shop.repository.ReturnRepository;
@@ -24,20 +21,14 @@ public class ReturnService {
   private final OrderRepository orderRepository;
   private final ReturnRepository returnRepository;
   private final WarehouseClient warehouseClient;
-  private final PaymentClient paymentClient;
-  private final OrderStateMachine orderStateMachine;
 
   public ReturnService(
       OrderRepository orderRepository,
       ReturnRepository returnRepository,
-      WarehouseClient warehouseClient,
-      PaymentClient paymentClient,
-      OrderStateMachine orderStateMachine) {
+      WarehouseClient warehouseClient) {
     this.orderRepository = orderRepository;
     this.returnRepository = returnRepository;
     this.warehouseClient = warehouseClient;
-    this.paymentClient = paymentClient;
-    this.orderStateMachine = orderStateMachine;
   }
 
   /** Auto-approves an eligible full-order return and produces a demo prepaid label. */
@@ -77,12 +68,20 @@ public class ReturnService {
         .orElseThrow(() -> new ResourceNotFoundException("Return not found"));
   }
 
-  /** Warehouse-only completion: record inspection, restock sellable goods, then refund payment. */
+  /**
+   * Demo warehouse command: record receipt and inspection. Warehouse then publishes ReturnInspected,
+   * and the Commerce refund workflow consumes that event asynchronously.
+   */
   @Transactional
-  public ReturnResponse inspectAndRefund(Long returnId, String disposition, String inspectionNote) {
+  public ReturnResponse recordWarehouseInspection(
+      Long returnId, String disposition, String inspectionNote) {
     Return returnRequest = returnRepository.findById(returnId)
         .orElseThrow(() -> new ResourceNotFoundException("Return not found"));
-    if ("REFUNDED".equals(returnRequest.getStatus())) return ReturnResponse.from(returnRequest);
+    if ("REFUNDED".equals(returnRequest.getStatus())
+        || "REFUND_PENDING".equals(returnRequest.getStatus())
+        || "RECEIVED".equals(returnRequest.getStatus())) {
+      return ReturnResponse.from(returnRequest);
+    }
     if (!"APPROVED".equals(returnRequest.getStatus())) {
       throw new IllegalStateException("Return is not awaiting warehouse receipt.");
     }
@@ -90,21 +89,11 @@ public class ReturnService {
       throw new IllegalArgumentException("disposition must be SELLABLE or DAMAGED");
     }
 
-    returnRequest.setStatus("RECEIVED");
     returnRequest.setReceivedAt(Instant.now());
     returnRequest.setInspectionNote(inspectionNote);
     warehouseClient.inspectReturn(returnRequest, disposition, inspectionNote);
 
-    PaymentClient.Refund refund = paymentClient.refund(
-        returnRequest.getOrder().getId(), returnRequest.getId());
-    if (!"SUCCEEDED".equals(refund.status())) {
-      throw new IllegalStateException("The payment provider did not complete the refund.");
-    }
-    Order order = returnRequest.getOrder();
-    order.setPaymentStatus("REFUNDED");
-    orderStateMachine.transition(order, OrderEvent.REFUND_SUCCEEDED, refund.refundId());
-    returnRequest.setStatus("REFUNDED");
-    returnRequest.setRefundedAt(Instant.now());
+    returnRequest.setStatus("RECEIVED");
     return ReturnResponse.from(returnRequest);
   }
 }

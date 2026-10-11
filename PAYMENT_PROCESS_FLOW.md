@@ -38,6 +38,24 @@ sequenceDiagram
 - The payment outbox makes the database update and the intent to publish an event atomic. Publishing is at-least-once, so both Commerce and Warehouse store processed event IDs to ignore duplicates.
 - Repeating checkout with the same `(userId, checkoutId)` reuses the Commerce order and the existing Stripe PaymentIntent.
 
+## Missed-webhook reconciliation
+
+The Payment service also runs a scheduled reconciliation job. Every minute by default, it retrieves
+nonterminal PaymentIntents older than a 60-second grace period from Stripe and compares their
+authoritative Stripe status with the local `payments` row.
+
+```text
+Local payment = CREATED, Stripe PaymentIntent = succeeded
+  -> reconciliation marks payment PAID
+  -> writes the same PaymentSucceeded outbox event as the webhook path
+  -> Kafka updates Commerce and Warehouse
+```
+
+`requires_payment_method` and `requires_action` are not failures: the customer may not have
+submitted payment yet. They remain open until the checkout-expiration workflow cancels the intent
+and releases the warehouse reservation. Configure the job with
+`PAYMENT_RECONCILIATION_DELAY_MS` and `PAYMENT_RECONCILIATION_GRACE_PERIOD_SECONDS`.
+
 ## Return and refund lifecycle
 
 ```text
@@ -46,13 +64,21 @@ Customer requests return in Commerce
   -> demo RMA and prepaid-label reference returned to customer
   -> Warehouse inspects the package
   -> SELLABLE items: on-hand inventory increases; RETURN_RECEIPT movement is written
-  -> Commerce calls Payment with (orderId, returnId)
+  -> Warehouse outbox publishes ReturnInspected to warehouse-events
+  -> Commerce consumes ReturnInspected and calls Payment with (orderId, returnId)
   -> Payment creates/refetches the provider refund using returnId as its idempotency key
-  -> payments is marked REFUNDED and a separate payment_refunds transaction row is stored
-  -> Commerce marks return, payment status, and order status REFUNDED
+  -> payment_refunds is stored as PENDING; the original payment remains PAID
+  -> Stripe sends a signed refund.updated webhook
+  -> Payment marks the refund SUCCEEDED or FAILED and writes a RefundSucceeded/RefundFailed outbox event
+  -> Commerce consumes that event and marks the return/order REFUNDED only on success
 ```
 
-For this demo, the synchronous Stripe refund response marks the refund complete. Production should also consume and reconcile the provider's refund webhook.
+The synchronous Stripe Refund API response only acknowledges the request. The signed
+`refund.updated` webhook determines the final refund state. Payment records the Stripe webhook
+event ID in its inbox table before returning `200`, so retries cannot produce duplicate events.
+
+Warehouse never calls Stripe. It publishes the physical-inspection fact; Commerce owns the
+business decision to request the refund, and Payment owns the provider interaction.
 
 ## Local webhook forwarding
 

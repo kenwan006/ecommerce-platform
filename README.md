@@ -118,9 +118,13 @@ The production-shaped endpoint is `POST /api/carriers/fedex/webhook`; it validat
 
 ## Returns and refunds
 
-Customers can request a return from **Track shipment** for a paid order. Commerce creates an auto-approved return request with a demo RMA and prepaid-label reference. After Warehouse inspection, sellable items are restocked and recorded as a `RETURN_RECEIPT` inventory movement. Commerce then calls Payment for an idempotent refund.
+Customers can request a return from **Track shipment** for a paid order. Commerce creates an auto-approved return request with a demo RMA and prepaid-label reference. After Warehouse inspection, sellable items are restocked and recorded as a `RETURN_RECEIPT` inventory movement. Warehouse publishes `ReturnInspected`; Commerce consumes it and requests the idempotent refund from Payment. The return then stays `REFUND_PENDING` until Stripe's signed refund webhook confirms the final result.
 
 The original charge remains in `payments`; the separate money movement is stored in `payment_refunds`, linked to the Commerce return ID. See [Return and refund flow](RETURN_FLOW.md) for the detailed lifecycle.
+
+Payment also reconciles nonterminal PaymentIntents with Stripe on a schedule. This repairs a
+missed webhook—for example, a local `CREATED` payment whose Stripe PaymentIntent is already
+`succeeded`—by emitting the same idempotent outbox event as normal webhook processing.
 
 ## End-to-end tests
 

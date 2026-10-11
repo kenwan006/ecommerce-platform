@@ -6,6 +6,7 @@ import com.example.shop.order.OrderEvent;
 import com.example.shop.order.OrderStateMachine;
 import com.example.shop.repository.OrderRepository;
 import com.example.shop.repository.ProcessedEventRepository;
+import com.example.shop.repository.ReturnRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -17,16 +18,19 @@ public class PaymentEventsListener {
   private final ObjectMapper objectMapper;
   private final OrderRepository orderRepository;
   private final ProcessedEventRepository processedEventRepository;
+  private final ReturnRepository returnRepository;
   private final OrderStateMachine orderStateMachine;
 
   public PaymentEventsListener(
       ObjectMapper objectMapper,
       OrderRepository orderRepository,
       ProcessedEventRepository processedEventRepository,
+      ReturnRepository returnRepository,
       OrderStateMachine orderStateMachine) {
     this.objectMapper = objectMapper;
     this.orderRepository = orderRepository;
     this.processedEventRepository = processedEventRepository;
+    this.returnRepository = returnRepository;
     this.orderStateMachine = orderStateMachine;
   }
 
@@ -47,6 +51,16 @@ public class PaymentEventsListener {
     } else if ("PaymentFailed".equals(event.type())) {
       orderStateMachine.transition(order, OrderEvent.PAYMENT_FAILED, event.paymentId());
       order.setPaymentStatus("FAILED");
+    } else if ("RefundSucceeded".equals(event.type())) {
+      orderStateMachine.transition(order, OrderEvent.REFUND_SUCCEEDED, event.paymentId());
+      order.setPaymentStatus("REFUNDED");
+      returnRepository.findByOrderId(order.getId()).ifPresent(returnRequest -> {
+        returnRequest.setStatus("REFUNDED");
+        returnRequest.setRefundedAt(java.time.Instant.now());
+      });
+    } else if ("RefundFailed".equals(event.type())) {
+      returnRepository.findByOrderId(order.getId())
+          .ifPresent(returnRequest -> returnRequest.setStatus("REFUND_FAILED"));
     } else {
       throw new IllegalArgumentException("Unsupported payment event type: " + event.type());
     }

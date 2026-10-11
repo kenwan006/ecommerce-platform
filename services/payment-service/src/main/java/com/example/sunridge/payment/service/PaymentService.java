@@ -7,7 +7,6 @@ import com.example.sunridge.payment.model.CreatePaymentResponse;
 import com.example.sunridge.payment.model.RefundResponse;
 import com.example.sunridge.payment.repository.PaymentRepository;
 import com.example.sunridge.payment.repository.PaymentRefundRepository;
-import java.time.Instant;
 import com.stripe.Stripe;
 import com.stripe.model.PaymentIntent;
 import com.stripe.model.Refund;
@@ -70,7 +69,7 @@ public class PaymentService {
       payment.setProviderPaymentId(intent.getId());
       payment.setAmount(request.amount());
       payment.setCurrency(request.currency());
-      payment.setStatus("PENDING");
+      payment.setStatus("CREATED");
       payments.save(payment);
       return new CreatePaymentResponse(
           payment.getId(),
@@ -86,7 +85,8 @@ public class PaymentService {
 
   @Transactional
   public RefundResponse refund(Long commerceOrderId, Long commerceReturnId) {
-    PaymentRefund existingRefund = paymentRefunds.findByCommerceReturnId(commerceReturnId).orElse(null);
+    PaymentRefund existingRefund =
+        paymentRefunds.findByCommerceReturnId(commerceReturnId).orElse(null);
     if (existingRefund != null) {
       return new RefundResponse(
           existingRefund.getProviderRefundId(),
@@ -105,11 +105,6 @@ public class PaymentService {
       Refund refund = Refund.create(
           RefundCreateParams.builder().setPaymentIntent(payment.getProviderPaymentId()).build(),
           RequestOptions.builder().setIdempotencyKey("refund-return-" + commerceReturnId).build());
-      if (!"succeeded".equals(refund.getStatus())) {
-        throw new IllegalStateException("Stripe refund is " + refund.getStatus());
-      }
-      payment.setProviderRefundId(refund.getId());
-      payment.setStatus("REFUNDED");
       PaymentRefund paymentRefund = new PaymentRefund();
       paymentRefund.setPayment(payment);
       paymentRefund.setCommerceOrderId(commerceOrderId);
@@ -117,11 +112,10 @@ public class PaymentService {
       paymentRefund.setProviderRefundId(refund.getId());
       paymentRefund.setAmount(payment.getAmount());
       paymentRefund.setCurrency(payment.getCurrency());
-      paymentRefund.setStatus("SUCCEEDED");
-      paymentRefund.setCompletedAt(Instant.now());
+      paymentRefund.setStatus("PENDING");
       paymentRefunds.save(paymentRefund);
       return new RefundResponse(
-          refund.getId(), payment.getAmount(), payment.getCurrency(), "SUCCEEDED");
+          refund.getId(), payment.getAmount(), payment.getCurrency(), "PENDING");
     } catch (IllegalStateException exception) {
       throw exception;
     } catch (Exception exception) {

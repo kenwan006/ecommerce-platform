@@ -23,6 +23,6 @@ public class InternalReturnController {
       @PathVariable Long returnId,
       @RequestParam String disposition,
       @RequestParam(required = false) String note) {
-    return returnService.inspectAndRefund(returnId, disposition, note);
+    return returnService.recordWarehouseInspection(returnId, disposition, note);
   }
 }

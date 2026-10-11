@@ -6,4 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface PaymentRefundRepository extends JpaRepository<PaymentRefund, Long> {
   Optional<PaymentRefund> findByCommerceReturnId(Long commerceReturnId);
+
+  Optional<PaymentRefund> findByProviderRefundId(String providerRefundId);
 }

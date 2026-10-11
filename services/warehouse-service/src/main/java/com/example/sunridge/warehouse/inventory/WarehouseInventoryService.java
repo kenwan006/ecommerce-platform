@@ -8,6 +8,7 @@ import com.example.sunridge.warehouse.entity.InventoryReservation;
 import com.example.sunridge.warehouse.entity.InventoryReservationItem;
 import com.example.sunridge.warehouse.entity.Shipment;
 import com.example.sunridge.warehouse.entity.ReturnReceipt;
+import com.example.sunridge.warehouse.entity.WarehouseOutboxEvent;
 import com.example.sunridge.warehouse.entity.Warehouse;
 import com.example.sunridge.warehouse.entity.WarehouseProduct;
 import com.example.sunridge.warehouse.model.FulfillmentResponse;
@@ -25,9 +26,11 @@ import com.example.sunridge.warehouse.repository.ShipmentRepository;
 import com.example.sunridge.warehouse.repository.ReturnReceiptRepository;
 import com.example.sunridge.warehouse.repository.WarehouseProductRepository;
 import com.example.sunridge.warehouse.repository.WarehouseRepository;
+import com.example.sunridge.warehouse.repository.WarehouseOutboxEventRepository;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,6 +45,7 @@ public class WarehouseInventoryService {
   private final ShipmentRepository shipmentRepository;
   private final InventoryMovementRepository movementRepository;
   private final ReturnReceiptRepository returnReceiptRepository;
+  private final WarehouseOutboxEventRepository outboxEvents;
 
   public WarehouseInventoryService(
       WarehouseRepository warehouseRepository,
@@ -51,7 +55,8 @@ public class WarehouseInventoryService {
       FulfillmentOrderRepository fulfillmentRepository,
       ShipmentRepository shipmentRepository,
       InventoryMovementRepository movementRepository,
-      ReturnReceiptRepository returnReceiptRepository) {
+      ReturnReceiptRepository returnReceiptRepository,
+      WarehouseOutboxEventRepository outboxEvents) {
     this.warehouseRepository = warehouseRepository;
     this.productRepository = productRepository;
     this.levelRepository = levelRepository;
@@ -60,6 +65,7 @@ public class WarehouseInventoryService {
     this.shipmentRepository = shipmentRepository;
     this.movementRepository = movementRepository;
     this.returnReceiptRepository = returnReceiptRepository;
+    this.outboxEvents = outboxEvents;
   }
 
   @Transactional
@@ -153,6 +159,25 @@ public class WarehouseInventoryService {
     receipt.setDisposition(request.disposition());
     receipt.setInspectionNote(request.inspectionNote());
     returnReceiptRepository.save(receipt);
+
+    String eventId = UUID.randomUUID().toString();
+    WarehouseOutboxEvent event = new WarehouseOutboxEvent();
+    event.setId(eventId);
+    event.setAggregateType("ReturnReceipt");
+    event.setAggregateId(request.returnId().toString());
+    event.setEventType("ReturnInspected");
+    event.setOccurredAt(Instant.now());
+    event.setPayload(
+        "{\"eventId\":\""
+            + eventId
+            + "\",\"type\":\"ReturnInspected\",\"returnId\":"
+            + request.returnId()
+            + ",\"orderId\":"
+            + request.orderId()
+            + ",\"disposition\":\""
+            + request.disposition()
+            + "\"}");
+    outboxEvents.save(event);
   }
 
   @Transactional

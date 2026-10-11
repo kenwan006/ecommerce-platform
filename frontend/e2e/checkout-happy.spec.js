@@ -76,7 +76,7 @@ test('customer can pay, ship a return, and receive a refund after warehouse insp
     `${commerceUrl}/internal/returns/${returnRequest.id}/inspect?disposition=SELLABLE&note=E2E%20inspection`,
   );
   expect(inspection, await inspection.text()).toBeOK();
-  expect((await inspection.json()).status).toBe('REFUNDED');
+  expect((await inspection.json()).status).toBe('RECEIVED');
 
   await expect.poll(
     async () => (await orderForCustomer(request, orderId, customer)).status,

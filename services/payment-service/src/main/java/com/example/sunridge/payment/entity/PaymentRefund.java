@@ -42,17 +42,63 @@ public class PaymentRefund {
   @Column(name = "completed_at")
   private Instant completedAt;
 
-  public String getProviderRefundId() { return providerRefundId; }
-  public BigDecimal getAmount() { return amount; }
-  public String getCurrency() { return currency; }
-  public String getStatus() { return status; }
+  public Payment getPayment() {
+    return payment;
+  }
 
-  public void setPayment(Payment payment) { this.payment = payment; }
-  public void setCommerceOrderId(Long commerceOrderId) { this.commerceOrderId = commerceOrderId; }
-  public void setCommerceReturnId(Long commerceReturnId) { this.commerceReturnId = commerceReturnId; }
-  public void setProviderRefundId(String providerRefundId) { this.providerRefundId = providerRefundId; }
-  public void setAmount(BigDecimal amount) { this.amount = amount; }
-  public void setCurrency(String currency) { this.currency = currency; }
-  public void setStatus(String status) { this.status = status; }
-  public void setCompletedAt(Instant completedAt) { this.completedAt = completedAt; }
+  public String getProviderRefundId() {
+    return providerRefundId;
+  }
+
+  public Long getCommerceOrderId() {
+    return commerceOrderId;
+  }
+
+  public Long getCommerceReturnId() {
+    return commerceReturnId;
+  }
+
+  public BigDecimal getAmount() {
+    return amount;
+  }
+
+  public String getCurrency() {
+    return currency;
+  }
+
+  public String getStatus() {
+    return status;
+  }
+
+  public void setPayment(Payment payment) {
+    this.payment = payment;
+  }
+
+  public void setCommerceOrderId(Long commerceOrderId) {
+    this.commerceOrderId = commerceOrderId;
+  }
+
+  public void setCommerceReturnId(Long commerceReturnId) {
+    this.commerceReturnId = commerceReturnId;
+  }
+
+  public void setProviderRefundId(String providerRefundId) {
+    this.providerRefundId = providerRefundId;
+  }
+
+  public void setAmount(BigDecimal amount) {
+    this.amount = amount;
+  }
+
+  public void setCurrency(String currency) {
+    this.currency = currency;
+  }
+
+  public void setStatus(String status) {
+    this.status = status;
+  }
+
+  public void setCompletedAt(Instant completedAt) {
+    this.completedAt = completedAt;
+  }
 }

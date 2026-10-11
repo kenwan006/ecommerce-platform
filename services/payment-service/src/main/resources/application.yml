@@ -21,6 +21,11 @@ stripe:
   secret-key: ${STRIPE_SECRET_KEY:}
   webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
 
+payments:
+  reconciliation:
+    fixed-delay-ms: ${PAYMENT_RECONCILIATION_DELAY_MS:60000}
+    grace-period-seconds: ${PAYMENT_RECONCILIATION_GRACE_PERIOD_SECONDS:60}
+
 management:
   endpoints:
     web:
