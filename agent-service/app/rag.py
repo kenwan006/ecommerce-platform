@@ -41,6 +41,12 @@ def chunk_text(text: str, *, chunk_size: int = 1400, overlap: int = 200) -> list
         if end == len(normalized):
             break
         start = max(end - overlap, start + 1)
+        # The character-based overlap can land inside a word. Advance to the next
+        # whitespace boundary so retrieved chunks remain readable and citeable.
+        while start < len(normalized) and not normalized[start].isspace():
+            start += 1
+        while start < len(normalized) and normalized[start].isspace():
+            start += 1
     return chunks
 
 

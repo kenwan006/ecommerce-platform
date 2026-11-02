@@ -1,0 +1,12 @@
+[
+  {
+    "question": "How long do customers have to return an item?",
+    "expected_source": "returns-policy.md",
+    "should_abstain": false
+  },
+  {
+    "question": "What is the CEO's home address?",
+    "expected_source": null,
+    "should_abstain": true
+  }
+]

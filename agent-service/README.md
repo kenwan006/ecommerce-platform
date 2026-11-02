@@ -23,7 +23,7 @@ curl http://localhost:8000/health
 
 `Dockerfile` runs the application as a non-root user and never copies `.env` into the image. Supply production values through a platform secret store or runtime environment variables, including `OPENAI_API_KEY`, `GITHUB_TOKEN`, `SPRING_API_URL`, and `RAG_DATABASE_URL`.
 
-GitHub Actions workflow [agent-service-ci.yml](../.github/workflows/agent-service-ci.yml) runs on agent-service changes. It installs dependencies, validates imports, and builds the container image. It intentionally does **not** push an image or deploy; an AWS ECR/ECS/EKS deployment stage can be added once the target environment and secrets are configured.
+GitHub Actions workflow [agent-service-ci.yml](../.github/workflows/agent-service-ci.yml) runs on agent-service changes. It installs test dependencies, runs deterministic RAG tests, validates imports, and builds the container image. It intentionally does **not** push an image or deploy; an AWS ECR/ECS/EKS deployment stage can be added once the target environment and secrets are configured.
 
 ## Internal-document RAG
 
@@ -50,3 +50,24 @@ variables: `RAG_DOCUMENT_DIR`, `RAG_DATABASE_URL`, `RAG_EMBEDDING_MODEL`,
 
 The default model is `text-embedding-3-small`. Building and querying an index
 use the service's `OPENAI_API_KEY` and incur embedding API usage.
+
+### RAG evaluation tests
+
+Run the offline regression suite without an OpenAI API call or PostgreSQL:
+
+```bash
+pip install -r requirements-dev.txt
+pytest -q tests
+```
+
+The golden cases in `tests/fixtures/rag_eval_cases.json` assert that a policy
+question returns the expected source in the retrieved results and that an
+unanswerable question produces no result. The test suite also covers chunking,
+hashing, and pgvector literal formatting. Add a golden case whenever a policy
+document or retrieval behavior changes.
+
+This is intentionally a deterministic retrieval regression suite, not a full
+embedding-quality benchmark. Before production, run a separate evaluation
+against a staging pgvector index and real embeddings, and measure Recall@K,
+MRR, grounded-answer accuracy, and no-answer accuracy on a human-reviewed
+evaluation set.
