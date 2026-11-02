@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,7 +9,10 @@ from app.agents.order_agent import OrderAgent
 from app.api.ai_routes import router as ai_router
 from app.clients.spring_client import SpringClient
 from app.config import settings
+from app.memory import MemoryService
 from app.rag import PostgresRag
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -36,26 +40,49 @@ async def lifespan(app: FastAPI):
         cache_tools_list=True,
     )
 
+    connected_mcp_servers: list[MCPServerStreamableHttp] = []
     try:
-        await openai_docs_mcp_server.connect()
-        await openai_docs_mcp_server.list_tools()
-        await github_mcp_server.connect()
-        await github_mcp_server.list_tools()
+        # External MCP services enrich the assistant but must not prevent order
+        # support from starting. Their availability is independent of Commerce.
+        try:
+            await openai_docs_mcp_server.connect()
+            await openai_docs_mcp_server.list_tools()
+            connected_mcp_servers.append(openai_docs_mcp_server)
+        except Exception:
+            logger.warning("OpenAI Docs MCP is unavailable; starting without documentation tools.", exc_info=True)
+
+        try:
+            await github_mcp_server.connect()
+            await github_mcp_server.list_tools()
+            connected_mcp_servers.append(github_mcp_server)
+        except Exception:
+            logger.warning("GitHub MCP is unavailable; starting without GitHub tools.", exc_info=True)
 
         app.state.spring_client = SpringClient(settings.spring_api_url)
+        app.state.memory_service = MemoryService(
+            database_url=settings.rag_database_url,
+            embedding_model=settings.rag_embedding_model,
+            model=settings.agent_model,
+            tenant_id=settings.memory_tenant_id,
+            history_limit=settings.memory_history_limit,
+            summary_threshold=settings.memory_summary_threshold,
+            memory_top_k=settings.memory_top_k,
+            memory_min_score=settings.memory_min_score,
+        )
         app.state.order_agent = OrderAgent(
-            [openai_docs_mcp_server, github_mcp_server],
+            connected_mcp_servers,
             PostgresRag(
                 database_url=settings.rag_database_url,
                 embedding_model=settings.rag_embedding_model,
                 top_k=settings.rag_top_k,
                 min_score=settings.rag_min_score,
             ),
+            settings.agent_model,
         )
         yield
     finally:
-        await github_mcp_server.cleanup()
-        await openai_docs_mcp_server.cleanup()
+        for mcp_server in reversed(connected_mcp_servers):
+            await mcp_server.cleanup()
 
 
 app = FastAPI(title="Ecommerce AI Agent", lifespan=lifespan)

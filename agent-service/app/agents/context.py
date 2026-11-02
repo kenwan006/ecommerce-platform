@@ -9,5 +9,6 @@ class AgentRequestContext:
     """Trusted request data available to local tools, but never to the model."""
 
     authorization: str
+    user_id: str
     spring_client: SpringClient
     rag: PostgresRag

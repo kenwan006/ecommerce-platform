@@ -71,3 +71,16 @@ embedding-quality benchmark. Before production, run a separate evaluation
 against a staging pgvector index and real embeddings, and measure Recall@K,
 MRR, grounded-answer accuracy, and no-answer accuracy on a human-reviewed
 evaluation set.
+
+## User-scoped agent memory
+
+The agent now stores short-term conversation history and curated long-term
+customer memory in the same PostgreSQL/pgvector database. Apply
+`db/002_memory.sql` after `db/001_rag.sql`. React sends the returned
+`conversationId` on later messages; the service validates the bearer JWT with
+Commerce and scopes every conversation and memory lookup to that user.
+
+The complete design, validation plan, and acceptance criteria are in
+[AGENT_MEMORY_DESIGN.md](../AGENT_MEMORY_DESIGN.md). Useful configuration:
+`AGENT_MODEL`, `MEMORY_TENANT_ID`, `MEMORY_HISTORY_LIMIT`,
+`MEMORY_SUMMARY_THRESHOLD`, `MEMORY_TOP_K`, and `MEMORY_MIN_SCORE`.

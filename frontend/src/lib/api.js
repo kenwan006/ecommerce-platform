@@ -44,10 +44,10 @@ export const api = {
   }),
   getReturn: returnId => request(`/returns/${returnId}`),
   googleLoginUrl: 'http://localhost:8080/oauth2/authorization/google',
-  askAi: (message, signal) => request('/ai/ask', {
+  askAi: (message, conversationId, signal) => request('/ai/ask', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({ message, conversationId }),
     signal,
   }, AI_API_URL),
   createCheckout: (checkout) => request('/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(checkout) }),

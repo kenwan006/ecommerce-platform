@@ -10,6 +10,7 @@ export default function ChatBox() {
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState([welcomeMessage]);
+  const [conversationId, setConversationId] = useState(null);
   const [isSending, setIsSending] = useState(false);
   const [isRefunding, setIsRefunding] = useState(false);
 
@@ -43,7 +44,8 @@ export default function ChatBox() {
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 35_000);
     try {
-      const response = await api.askAi(text, controller.signal);
+      const response = await api.askAi(text, conversationId, controller.signal);
+      setConversationId(response.conversationId || response.conversation_id || conversationId);
       setMessages(current => [...current, {
         role: 'assistant',
         text: response.answer || response.reply || response.message || 'I could not generate a response.',

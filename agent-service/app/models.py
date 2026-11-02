@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 
 class AskRequest(BaseModel):
     message: str
+    conversation_id: str | None = Field(default=None, alias="conversationId")
 
 
 class RefundAction(BaseModel):
@@ -14,3 +15,4 @@ class RefundAction(BaseModel):
 class AskResponse(BaseModel):
     answer: str
     refund_action: RefundAction | None = None
+    conversation_id: str = Field(alias="conversationId")

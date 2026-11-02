@@ -21,6 +21,16 @@ class SpringClient:
         response.raise_for_status()
         return response.json()
 
+    async def get_current_user(self, authorization: str) -> dict:
+        """Ask Commerce to validate the JWT and return its authenticated user."""
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(
+                f"{self.base_url}/api/auth/me",
+                headers={"Authorization": authorization},
+            )
+        response.raise_for_status()
+        return response.json()
+
     async def get_pending_payment_orders(self, authorization: str) -> list:
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get(

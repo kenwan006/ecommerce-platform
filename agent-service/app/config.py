@@ -19,6 +19,12 @@ class Settings:
     rag_top_k: int
     rag_min_score: float
     rag_database_url: str
+    agent_model: str
+    memory_tenant_id: str
+    memory_history_limit: int
+    memory_summary_threshold: int
+    memory_top_k: int
+    memory_min_score: float
 
 
 settings = Settings(
@@ -32,4 +38,10 @@ settings = Settings(
     rag_top_k=int(os.getenv("RAG_TOP_K", "4")),
     rag_min_score=float(os.getenv("RAG_MIN_SCORE", "0.25")),
     rag_database_url=os.getenv("RAG_DATABASE_URL", "postgresql://chaowan@127.0.0.1:5432/postgres"),
+    agent_model=os.getenv("AGENT_MODEL", "gpt-4o-mini"),
+    memory_tenant_id=os.getenv("MEMORY_TENANT_ID", "sunridge"),
+    memory_history_limit=int(os.getenv("MEMORY_HISTORY_LIMIT", "12")),
+    memory_summary_threshold=int(os.getenv("MEMORY_SUMMARY_THRESHOLD", "12")),
+    memory_top_k=int(os.getenv("MEMORY_TOP_K", "3")),
+    memory_min_score=float(os.getenv("MEMORY_MIN_SCORE", "0.45")),
 )

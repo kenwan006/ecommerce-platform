@@ -24,7 +24,7 @@ Stripe.js / Stripe CLI ───────────────────
 | Warehouse | 8082 | `sunridge_warehouse` | inventory, reservations, movements, fulfillment, shipment, return inspection |
 | Payment | 8083 | `sunridge_payment` | Stripe PaymentIntents, refunds, webhooks, payment outbox |
 | Notification | 8084 | `sunridge_notification` | Kafka-driven customer emails and PDF documents |
-| FastAPI agent | 8000 | — | AI orchestration and order tools |
+| FastAPI agent | 8000 | PostgreSQL/pgvector | AI orchestration, user-scoped conversation memory, durable preferences, and order tools |
 | Redpanda | 9092 | — | Kafka-compatible event broker |
 
 The legacy `ecommerce` database is kept unchanged as a local migration source.
@@ -71,8 +71,16 @@ npm run dev
 
 cd agent-service
 source .venv/bin/activate
+# Apply db/001_rag.sql and db/002_memory.sql to RAG_DATABASE_URL once.
 uvicorn app.main:app --reload --port 8000
 ```
+
+The agent validates the customer's Commerce JWT, stores original conversation
+messages plus a rolling short-term summary, and retrieves only that customer's
+curated durable memories from pgvector. Transactional order, payment, refund,
+and shipment facts always come from live service tools. See
+[AGENT_MEMORY_DESIGN.md](AGENT_MEMORY_DESIGN.md) for the data model,
+guardrails, validation plan, and acceptance criteria.
 
 Forward Stripe test webhooks to the Payment service, not Commerce:
 

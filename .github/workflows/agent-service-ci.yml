@@ -37,8 +37,8 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements-dev.txt
 
-      - name: Run deterministic RAG tests
-        run: pytest -q tests
+      - name: Run deterministic RAG and memory tests
+        run: python -m pytest -q tests
 
       - name: Validate application imports
         run: |

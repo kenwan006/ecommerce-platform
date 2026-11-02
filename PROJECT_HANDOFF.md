@@ -8,7 +8,9 @@ The working demo has been split into three Spring Boot service domains while the
 - **Warehouse** — `services/warehouse-service/`, port `8082`, database `sunridge_warehouse`
 - **Payment** — `services/payment-service/`, port `8083`, database `sunridge_payment`
 - **React UI** — `frontend/`, port `5173`
-- **FastAPI agent** — `agent-service/`, port `8000`
+- **FastAPI agent** — `agent-service/`, port `8000`; uses PostgreSQL/pgvector
+  for user-scoped conversation history, summaries, durable preferences, and
+  internal-document RAG.
 - **Redpanda** — Kafka-compatible broker on `9092`
 
 `ecommerce` is retained only as the legacy local database. It is not modified by the new Commerce datasource or the optional copy script.
@@ -35,6 +37,11 @@ Payment uses an outbox table and a scheduled publisher. Commerce and Warehouse c
 4. Start Commerce with the `local` Spring profile.
 5. Run `stripe listen --forward-to localhost:8083/api/stripe/webhook`.
 6. Start React and FastAPI as needed.
+
+Before the first FastAPI start, apply `agent-service/db/001_rag.sql` and
+`agent-service/db/002_memory.sql` to `RAG_DATABASE_URL`. The second migration
+adds conversations, messages, and safe long-term user memory. Details and
+acceptance criteria: [AGENT_MEMORY_DESIGN.md](AGENT_MEMORY_DESIGN.md).
 
 All real credentials are only in ignored local files or environment variables:
 
