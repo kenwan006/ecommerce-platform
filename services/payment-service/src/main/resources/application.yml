@@ -2,8 +2,8 @@ spring:
   application:
     name: payment-service
   datasource:
-    url: jdbc:mysql://localhost:3306/sunridge_payment?useSSL=false&serverTimezone=UTC
-    username: root
+    url: ${PAYMENT_DB_URL:jdbc:mysql://localhost:3306/sunridge_payment?useSSL=false&serverTimezone=UTC}
+    username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:}
   jpa:
     hibernate:

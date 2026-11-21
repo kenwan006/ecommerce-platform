@@ -1,6 +1,6 @@
-const API_URL = 'http://localhost:8080/api';
-const AI_API_URL = 'http://localhost:8000/api';
-const WAREHOUSE_API_URL = 'http://localhost:8082/api';
+const API_URL = '/api';
+const AI_API_URL = '/agent-api';
+const WAREHOUSE_API_URL = '/warehouse-api';
 
 async function request(path, options, apiUrl = API_URL) {
   const accessToken = localStorage.getItem('accessToken');
@@ -43,7 +43,7 @@ export const api = {
     body: JSON.stringify({ reason }),
   }),
   getReturn: returnId => request(`/returns/${returnId}`),
-  googleLoginUrl: 'http://localhost:8080/oauth2/authorization/google',
+  googleLoginUrl: '/oauth2/authorization/google',
   askAi: (message, conversationId, signal) => request('/ai/ask', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

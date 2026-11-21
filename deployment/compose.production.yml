@@ -1,0 +1,100 @@
+name: sunridge
+
+# Values in .env are deployment coordinates only: AWS_ACCOUNT_ID, AWS_REGION,
+# IMAGE_TAG, MYSQL_HOST, and POSTGRES_HOST. Secrets belong in the untracked
+# runtime.env file described in deployment/runtime.env.example.
+services:
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v24.3.9
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp
+      - '1'
+      - --memory
+      - 512M
+      - --node-id
+      - '0'
+      - --check=false
+      - --kafka-addr
+      - PLAINTEXT://0.0.0.0:9092
+      - --advertise-kafka-addr
+      - PLAINTEXT://redpanda:9092
+    restart: unless-stopped
+    volumes:
+      - redpanda-data:/var/lib/redpanda/data
+    healthcheck:
+      test: [CMD-SHELL, rpk cluster health]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
+  commerce:
+    image: ${ECR_REGISTRY}/sunridge-dev/commerce:${IMAGE_TAG}
+    restart: unless-stopped
+    env_file: runtime.env
+    environment:
+      COMMERCE_DB_URL: jdbc:mysql://${MYSQL_HOST}:3306/sunridge_commerce?useSSL=true&requireSSL=true&serverTimezone=UTC
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      WAREHOUSE_SERVICE_URL: http://warehouse:8082
+      PAYMENT_SERVICE_URL: http://payment:8083
+    depends_on:
+      redpanda:
+        condition: service_healthy
+
+  warehouse:
+    image: ${ECR_REGISTRY}/sunridge-dev/warehouse:${IMAGE_TAG}
+    restart: unless-stopped
+    env_file: runtime.env
+    environment:
+      WAREHOUSE_DB_URL: jdbc:mysql://${MYSQL_HOST}:3306/sunridge_warehouse?useSSL=true&requireSSL=true&serverTimezone=UTC
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+    depends_on:
+      redpanda:
+        condition: service_healthy
+
+  payment:
+    image: ${ECR_REGISTRY}/sunridge-dev/payment:${IMAGE_TAG}
+    restart: unless-stopped
+    env_file: runtime.env
+    environment:
+      PAYMENT_DB_URL: jdbc:mysql://${MYSQL_HOST}:3306/sunridge_payment?useSSL=true&requireSSL=true&serverTimezone=UTC
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+    depends_on:
+      redpanda:
+        condition: service_healthy
+
+  notification:
+    image: ${ECR_REGISTRY}/sunridge-dev/notification:${IMAGE_TAG}
+    restart: unless-stopped
+    env_file: runtime.env
+    environment:
+      NOTIFICATION_DB_URL: jdbc:mysql://${MYSQL_HOST}:3306/sunridge_notification?useSSL=true&requireSSL=true&serverTimezone=UTC
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      COMMERCE_SERVICE_URL: http://commerce:8080
+    depends_on:
+      redpanda:
+        condition: service_healthy
+
+  agent:
+    image: ${ECR_REGISTRY}/sunridge-dev/agent:${IMAGE_TAG}
+    restart: unless-stopped
+    env_file: runtime.env
+    environment:
+      SPRING_API_URL: http://commerce:8080
+
+  frontend:
+    image: ${ECR_REGISTRY}/sunridge-dev/frontend:${IMAGE_TAG}
+    restart: unless-stopped
+    env_file: runtime.env
+    ports:
+      - 80:8080
+    depends_on:
+      - commerce
+      - warehouse
+      - payment
+      - agent
+
+volumes:
+  redpanda-data:

@@ -1,0 +1,20 @@
+{
+  "name": "sunridge-aws-infrastructure",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc --noEmit",
+    "watch": "tsc --watch --noEmit",
+    "cdk": "cdk"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "aws-cdk": "^2.160.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.160.0",
+    "constructs": "^10.0.0"
+  }
+}

@@ -2,8 +2,8 @@ spring:
   application:
     name: warehouse-service
   datasource:
-    url: jdbc:mysql://localhost:3306/sunridge_warehouse?useSSL=false&serverTimezone=UTC
-    username: root
+    url: ${WAREHOUSE_DB_URL:jdbc:mysql://localhost:3306/sunridge_warehouse?useSSL=false&serverTimezone=UTC}
+    username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:}
   jpa:
     hibernate:

@@ -1,0 +1,8 @@
+{
+  "app": "npx ts-node --prefer-ts-exts bin/sunridge-infra.ts",
+  "context": {
+    "environmentName": "dev",
+    "deletionProtection": false,
+    "@aws-cdk/core:defaultCrossStackReferences": "strong"
+  }
+}

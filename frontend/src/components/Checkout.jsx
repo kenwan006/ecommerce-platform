@@ -3,7 +3,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import React, { useState } from 'react';
 import { formatCurrency } from '../lib/formatters';
 
-const publishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+const publishableKey = window.__SUNRIDGE_CONFIG__?.stripePublishableKey || import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
 const stripePromise = publishableKey ? loadStripe(publishableKey) : null;
 
 function PaymentForm({ total, onPaymentComplete }) {
@@ -70,7 +70,7 @@ export default function Checkout({ clientSecret, total, onPaymentComplete }) {
       <section className="panel">
         <p>PAYMENT SETUP REQUIRED</p>
         <h2>Stripe is not configured.</h2>
-        <p>Set VITE_STRIPE_PUBLISHABLE_KEY to your Stripe publishable test key, then restart Vite.</p>
+        <p>Set STRIPE_PUBLISHABLE_KEY for the deployed frontend, then restart the container.</p>
       </section>
     );
   }
