@@ -2,6 +2,7 @@ import * as cdk from 'aws-cdk-lib';
 import { CfnOutput, Stack, StackProps } from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import * as logs from 'aws-cdk-lib/aws-logs';
 import { Construct } from 'constructs';
 import { SunridgeApplicationSecretsStack } from './sunridge-application-secrets-stack';
 import { SunridgeDatabaseStack } from './sunridge-database-stack';
@@ -38,6 +39,16 @@ export class SunridgeComputeStack extends Stack {
     props.applicationSecretsStack.jwtSecret.grantRead(instanceRole);
     props.applicationSecretsStack.internalApiKeySecret.grantRead(instanceRole);
     props.applicationSecretsStack.externalConfigSecret.grantRead(instanceRole);
+
+    // Docker's awslogs driver runs on the EC2 host, so the host role—not an
+    // application container—needs only permission to create streams and send
+    // log entries to this pre-created group.
+    const containerLogGroup = new logs.LogGroup(this, 'ContainerLogGroup', {
+      logGroupName: `/sunridge/${props.environmentName}/containers`,
+      retention: logs.RetentionDays.ONE_WEEK,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+    containerLogGroup.grantWrite(instanceRole);
 
     const userData = ec2.UserData.forLinux();
     userData.addCommands(

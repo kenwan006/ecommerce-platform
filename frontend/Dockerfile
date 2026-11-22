@@ -7,6 +7,8 @@ RUN npm run build
 
 FROM nginx:1.27-alpine
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY env.js.template /etc/nginx/templates/env.js.template
+COPY env.js.template /usr/share/nginx/html/env.js.template
+COPY render-runtime-config.sh /docker-entrypoint.d/40-render-runtime-config.sh
+RUN chmod +x /docker-entrypoint.d/40-render-runtime-config.sh
 COPY --from=build /app/dist /usr/share/nginx/html
 EXPOSE 8080

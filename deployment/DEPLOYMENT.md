@@ -301,7 +301,59 @@ aws ssm start-session \
   --region us-east-2
 ```
 
-## 8. Current safety boundaries
+## 8. Send container logs to CloudWatch
+
+CDK creates the `/sunridge/dev/containers` log group with seven-day retention
+and grants the EC2 host only `logs:CreateLogStream` and `logs:PutLogEvents` for
+that group. Deploy the CDK change first:
+
+```bash
+cd infrastructure/aws-cdk
+
+CDK_DEFAULT_ACCOUNT=919537457365 CDK_DEFAULT_REGION=us-east-2 \
+npx aws-cdk deploy SunridgeCompute-dev \
+  --profile sunridge-dev \
+  --region us-east-2
+```
+
+Copy the updated non-secret Compose file to `/opt/sunridge/deployment` on EC2:
+
+```bash
+cd ecommerce-platform
+COMPOSE_CONTENT="$(base64 < deployment/compose.production.yml | tr -d '\n')"
+
+aws ssm send-command \
+  --instance-ids i-061f83e2af85bd26f \
+  --document-name AWS-RunShellScript \
+  --parameters "commands=[\"echo '$COMPOSE_CONTENT' | base64 -d | sudo tee /opt/sunridge/deployment/compose.production.yml >/dev/null\",\"sudo chown ssm-user:ssm-user /opt/sunridge/deployment/compose.production.yml\"]" \
+  --profile sunridge-dev \
+  --region us-east-2
+```
+
+Then validate and recreate the containers. Recreation is required because a
+Docker logging driver is chosen when each container is created.
+
+```bash
+cd /opt/sunridge/deployment
+sudo docker compose --env-file .env -f compose.production.yml config --quiet
+sudo docker compose --env-file .env -f compose.production.yml up -d --force-recreate
+sudo docker compose --env-file .env -f compose.production.yml ps
+```
+
+In the AWS Console, open **CloudWatch** → **Log groups** →
+`/sunridge/dev/containers`. The streams are named `commerce`, `warehouse`,
+`payment`, `notification`, `agent`, `frontend`, and `redpanda`.
+
+To confirm a running container uses CloudWatch, run on EC2:
+
+```bash
+sudo docker inspect sunridge-commerce-1 \
+  --format '{{.HostConfig.LogConfig.Type}}'
+```
+
+Expected output: `awslogs`.
+
+## 9. Current safety boundaries
 
 - RDS has no public IP and only accepts database traffic from the application
   security group.

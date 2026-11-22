@@ -29,6 +29,14 @@ services:
       interval: 15s
       timeout: 10s
       retries: 10
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: ${AWS_REGION}
+        awslogs-group: /sunridge/dev/containers
+        awslogs-stream: redpanda
+        mode: non-blocking
+        max-buffer-size: 4m
 
   commerce:
     image: ${ECR_REGISTRY}/sunridge-dev/commerce:${IMAGE_TAG}
@@ -42,6 +50,14 @@ services:
     depends_on:
       redpanda:
         condition: service_healthy
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: ${AWS_REGION}
+        awslogs-group: /sunridge/dev/containers
+        awslogs-stream: commerce
+        mode: non-blocking
+        max-buffer-size: 4m
 
   warehouse:
     image: ${ECR_REGISTRY}/sunridge-dev/warehouse:${IMAGE_TAG}
@@ -53,6 +69,14 @@ services:
     depends_on:
       redpanda:
         condition: service_healthy
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: ${AWS_REGION}
+        awslogs-group: /sunridge/dev/containers
+        awslogs-stream: warehouse
+        mode: non-blocking
+        max-buffer-size: 4m
 
   payment:
     image: ${ECR_REGISTRY}/sunridge-dev/payment:${IMAGE_TAG}
@@ -64,6 +88,14 @@ services:
     depends_on:
       redpanda:
         condition: service_healthy
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: ${AWS_REGION}
+        awslogs-group: /sunridge/dev/containers
+        awslogs-stream: payment
+        mode: non-blocking
+        max-buffer-size: 4m
 
   notification:
     image: ${ECR_REGISTRY}/sunridge-dev/notification:${IMAGE_TAG}
@@ -76,6 +108,14 @@ services:
     depends_on:
       redpanda:
         condition: service_healthy
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: ${AWS_REGION}
+        awslogs-group: /sunridge/dev/containers
+        awslogs-stream: notification
+        mode: non-blocking
+        max-buffer-size: 4m
 
   agent:
     image: ${ECR_REGISTRY}/sunridge-dev/agent:${IMAGE_TAG}
@@ -83,6 +123,14 @@ services:
     env_file: runtime.env
     environment:
       SPRING_API_URL: http://commerce:8080
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: ${AWS_REGION}
+        awslogs-group: /sunridge/dev/containers
+        awslogs-stream: agent
+        mode: non-blocking
+        max-buffer-size: 4m
 
   frontend:
     image: ${ECR_REGISTRY}/sunridge-dev/frontend:${IMAGE_TAG}
@@ -95,6 +143,14 @@ services:
       - warehouse
       - payment
       - agent
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: ${AWS_REGION}
+        awslogs-group: /sunridge/dev/containers
+        awslogs-stream: frontend
+        mode: non-blocking
+        max-buffer-size: 4m
 
 volumes:
   redpanda-data:
