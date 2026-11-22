@@ -161,6 +161,17 @@ docker tag \
 docker push "$ECR_REGISTRY/sunridge-dev/commerce:$IMAGE_TAG"
 ```
 
+The Compose file supports independent immutable tags for the three Java services
+that are most often updated independently. Keep the generic `IMAGE_TAG` for
+Agent, Frontend, and Notification; set these in `deployment/.env` when rolling
+one Java service without rebuilding all six images:
+
+```text
+COMMERCE_IMAGE_TAG=dev-20261120-0001
+WAREHOUSE_IMAGE_TAG=dev-20261120-0001
+PAYMENT_IMAGE_TAG=dev-20261120-0001
+```
+
 The six repositories and their local build contexts are:
 
 ```text

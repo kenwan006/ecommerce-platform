@@ -31,11 +31,15 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class WarehouseInventoryService {
+  private static final Logger log = LoggerFactory.getLogger(WarehouseInventoryService.class);
+
   private final WarehouseRepository warehouseRepository;
   private final WarehouseProductRepository productRepository;
   private final InventoryLevelRepository levelRepository;
@@ -254,6 +258,12 @@ public class WarehouseInventoryService {
             + trackingNumber
             + "\"}");
     outboxEvents.save(event);
+    log.info(
+        "Shipment created: fulfillmentId={}, orderId={}, carrier={}, eventId={}",
+        fulfillmentId,
+        fulfillment.getCommerceOrderId(),
+        carrier,
+        eventId);
   }
 
   @Transactional(readOnly = true)

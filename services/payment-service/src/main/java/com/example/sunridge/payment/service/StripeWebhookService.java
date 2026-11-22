@@ -14,11 +14,15 @@ import com.stripe.model.Refund;
 import com.stripe.model.StripeObject;
 import java.time.Instant;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class StripeWebhookService {
+  private static final Logger log = LoggerFactory.getLogger(StripeWebhookService.class);
+
   private final PaymentRepository payments;
   private final PaymentRefundRepository paymentRefunds;
   private final OutboxEventRepository outbox;
@@ -37,7 +41,11 @@ public class StripeWebhookService {
 
   @Transactional
   public void handle(Event event) {
-    if (webhookEvents.existsByProviderEventId(event.getId())) return;
+    if (webhookEvents.existsByProviderEventId(event.getId())) {
+      log.info("Ignoring duplicate Stripe webhook: eventId={}, type={}", event.getId(), event.getType());
+      return;
+    }
+    log.info("Processing Stripe webhook: eventId={}, type={}", event.getId(), event.getType());
 
     switch (event.getType()) {
       case "payment_intent.succeeded" -> handlePaymentIntent(event, true);
@@ -46,10 +54,12 @@ public class StripeWebhookService {
       case "refund.updated" -> handleRefund(event);
       default -> {
         recordWebhookEvent(event, "IGNORED");
+        log.info("Ignored unsupported Stripe webhook: eventId={}, type={}", event.getId(), event.getType());
         return;
       }
     }
     recordWebhookEvent(event, "PROCESSED");
+    log.info("Processed Stripe webhook: eventId={}, type={}", event.getId(), event.getType());
   }
 
   private void handlePaymentIntent(Event event, boolean succeeded) {
@@ -60,6 +70,11 @@ public class StripeWebhookService {
         payments
             .findByProviderPaymentId(intent.getId())
             .orElseThrow(() -> new IllegalArgumentException("Payment not found"));
+    log.info(
+        "Applying Stripe payment state: orderId={}, paymentIntentId={}, succeeded={}",
+        payment.getCommerceOrderId(),
+        intent.getId(),
+        succeeded);
     if (succeeded) {
       markPaymentSucceeded(payment, event.getId());
     } else {
@@ -92,6 +107,11 @@ public class StripeWebhookService {
     if (!isOpen(payment)) return;
     payment.setStatus("PAID");
     publishPaymentOutcome(payment, sourceEventId, "PaymentSucceeded");
+    log.info(
+        "Payment marked paid: orderId={}, paymentIntentId={}, sourceEventId={}",
+        payment.getCommerceOrderId(),
+        payment.getProviderPaymentId(),
+        sourceEventId);
   }
 
   private void markPaymentFailed(
@@ -99,6 +119,11 @@ public class StripeWebhookService {
     if (!isOpen(payment)) return;
     payment.setStatus("FAILED");
     publishPaymentOutcome(payment, sourceEventId, "PaymentFailed");
+    log.warn(
+        "Payment marked failed: orderId={}, paymentIntentId={}, sourceEventId={}",
+        payment.getCommerceOrderId(),
+        payment.getProviderPaymentId(),
+        sourceEventId);
   }
 
   private boolean isOpen(com.example.sunridge.payment.entity.Payment payment) {

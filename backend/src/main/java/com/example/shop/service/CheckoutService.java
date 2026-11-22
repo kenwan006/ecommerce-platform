@@ -9,11 +9,15 @@ import com.example.shop.fraud.FraudAssessmentService;
 import com.example.shop.fraud.model.FraudDecision;
 import com.example.shop.fraud.model.FraudDecisionResult;
 import com.example.shop.repository.OrderRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 @Service
 public class CheckoutService {
+  private static final Logger log = LoggerFactory.getLogger(CheckoutService.class);
+
   private final OrderRepository orders;
   private final OrderService ordersService;
   private final FraudAssessmentService fraudAssessmentService;
@@ -34,6 +38,11 @@ public class CheckoutService {
   }
 
   public CheckoutResponse createCheckout(CheckoutRequest request) {
+    log.info(
+        "Checkout requested: userId={}, checkoutId={}, itemCount={}",
+        request.userId(),
+        request.checkoutId(),
+        request.items().size());
     Order savedOrder;
     try {
       // This transaction commits before Stripe is called. A timeout can therefore be retried
@@ -43,12 +52,15 @@ public class CheckoutService {
       // Another request with this checkoutId won the unique-key race; reuse its order.
       savedOrder = ordersService.getCheckout(request.userId(), request.checkoutId());
     }
+    log.info("Checkout order ready: orderId={}, status={}", savedOrder.getId(), savedOrder.getStatus());
     warehouseClient.reserve(savedOrder);
     FraudDecisionResult fraudDecision = fraudAssessmentService.assess(savedOrder.getId());
     if (fraudDecision.decision() == FraudDecision.DECLINE) {
+      log.warn("Checkout declined by fraud screening: orderId={}", savedOrder.getId());
       throw new IllegalStateException("Checkout declined by fraud screening");
     }
     if (fraudDecision.decision() == FraudDecision.REVIEW) {
+      log.warn("Checkout requires fraud review: orderId={}", savedOrder.getId());
       throw new IllegalStateException("Checkout requires manual fraud review");
     }
     PaymentClient.Payment payment =
@@ -56,6 +68,11 @@ public class CheckoutService {
             savedOrder.getId(), savedOrder.getCheckoutId(), savedOrder.getTotal(), "usd");
     savedOrder.setStripePaymentIntentId(payment.providerPaymentId());
     orders.save(savedOrder);
+    log.info(
+        "Checkout payment intent ready: orderId={}, paymentIntentId={}, status={}",
+        savedOrder.getId(),
+        payment.providerPaymentId(),
+        payment.status());
     return new CheckoutResponse(
         savedOrder.getId(),
         payment.providerPaymentId(),

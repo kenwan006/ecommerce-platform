@@ -39,7 +39,7 @@ services:
         max-buffer-size: 4m
 
   commerce:
-    image: ${ECR_REGISTRY}/sunridge-dev/commerce:${IMAGE_TAG}
+    image: ${ECR_REGISTRY}/sunridge-dev/commerce:${COMMERCE_IMAGE_TAG}
     restart: unless-stopped
     env_file: runtime.env
     environment:
@@ -60,7 +60,7 @@ services:
         max-buffer-size: 4m
 
   warehouse:
-    image: ${ECR_REGISTRY}/sunridge-dev/warehouse:${IMAGE_TAG}
+    image: ${ECR_REGISTRY}/sunridge-dev/warehouse:${WAREHOUSE_IMAGE_TAG}
     restart: unless-stopped
     env_file: runtime.env
     environment:
@@ -79,7 +79,7 @@ services:
         max-buffer-size: 4m
 
   payment:
-    image: ${ECR_REGISTRY}/sunridge-dev/payment:${IMAGE_TAG}
+    image: ${ECR_REGISTRY}/sunridge-dev/payment:${PAYMENT_IMAGE_TAG}
     restart: unless-stopped
     env_file: runtime.env
     environment:

@@ -46,6 +46,7 @@ public class WarehouseOutboxPublisher {
       try {
         kafka.send("warehouse-events", event.getAggregateId(), event.getPayload()).join();
         markPublished(event.getId());
+        log.info("Published warehouse event: eventId={}, type={}", event.getId(), event.getEventType());
       } catch (Exception exception) {
         log.warn("Could not publish warehouse outbox event {}", event.getId(), exception);
         recordFailure(event.getId(), rootMessage(exception));

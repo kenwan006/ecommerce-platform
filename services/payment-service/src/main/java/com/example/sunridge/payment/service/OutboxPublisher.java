@@ -45,6 +45,7 @@ public class OutboxPublisher {
       try {
         kafka.send("payment-events", event.getAggregateId(), event.getPayload()).join();
         markPublished(event.getId());
+        log.info("Published payment event: eventId={}, type={}", event.getId(), event.getEventType());
       } catch (Exception exception) {
         log.warn("Could not publish payment outbox event {}", event.getId(), exception);
         recordFailure(event.getId(), rootMessage(exception));

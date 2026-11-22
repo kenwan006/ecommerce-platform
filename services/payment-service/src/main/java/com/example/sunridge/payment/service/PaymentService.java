@@ -14,12 +14,16 @@ import com.stripe.model.Refund;
 import com.stripe.net.RequestOptions;
 import com.stripe.param.PaymentIntentCreateParams;
 import com.stripe.param.RefundCreateParams;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class PaymentService {
+  private static final Logger log = LoggerFactory.getLogger(PaymentService.class);
+
   private final PaymentRepository payments;
   private final PaymentRefundRepository paymentRefunds;
   private final StripeWebhookService paymentState;
@@ -44,6 +48,11 @@ public class PaymentService {
       Stripe.apiKey = secretKey;
       if (existing != null) {
         PaymentIntent intent = PaymentIntent.retrieve(existing.getProviderPaymentId());
+        log.info(
+            "Reusing Stripe payment intent: orderId={}, paymentIntentId={}, status={}",
+            existing.getCommerceOrderId(),
+            existing.getProviderPaymentId(),
+            existing.getStatus());
         return new CreatePaymentResponse(
             existing.getId(),
             existing.getProviderPaymentId(),
@@ -75,6 +84,12 @@ public class PaymentService {
       payment.setCurrency(request.currency());
       payment.setStatus("CREATED");
       payments.save(payment);
+      log.info(
+          "Created Stripe payment intent: orderId={}, paymentIntentId={}, amount={}, currency={}",
+          request.orderId(),
+          intent.getId(),
+          request.amount(),
+          request.currency());
       return new CreatePaymentResponse(
           payment.getId(),
           intent.getId(),
@@ -83,6 +98,7 @@ public class PaymentService {
           payment.getCurrency(),
           payment.getStatus());
     } catch (Exception exception) {
+      log.error("Could not create Stripe payment: orderId={}", request.orderId(), exception);
       throw new IllegalStateException("Could not create Stripe payment", exception);
     }
   }
