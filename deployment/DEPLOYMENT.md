@@ -364,7 +364,40 @@ sudo docker inspect sunridge-commerce-1 \
 
 Expected output: `awslogs`.
 
-## 9. Current safety boundaries
+## 9. Temporarily expose the development UI with Cloudflare Quick Tunnel
+
+This is a free, temporary HTTPS address for development testing. It does not
+open an inbound EC2 security-group rule or require an ALB or registered domain.
+It routes to the existing frontend Nginx service, which proxies API requests to
+the private Docker services.
+
+Run this on the EC2 host:
+
+```bash
+sudo docker run -d \
+  --name sunridge-cloudflared-dev \
+  --restart unless-stopped \
+  --network sunridge_default \
+  cloudflare/cloudflared:latest \
+  tunnel --no-autoupdate --url http://frontend:8080
+
+sudo docker logs sunridge-cloudflared-dev
+```
+
+The logs print a random `https://*.trycloudflare.com` URL. Anyone with that
+URL can access the development app. A Quick Tunnel has no uptime guarantee and
+may receive a different URL after its container restarts. Stop it when it is no
+longer needed:
+
+```bash
+sudo docker rm -f sunridge-cloudflared-dev
+```
+
+Commerce and Warehouse accept the temporary `https://*.trycloudflare.com`
+origin for development CORS requests. A production deployment should instead
+use a registered domain and a deliberately configured HTTPS endpoint.
+
+## 10. Current safety boundaries
 
 - RDS has no public IP and only accepts database traffic from the application
   security group.
